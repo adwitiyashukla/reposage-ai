@@ -75,6 +75,11 @@ class Settings(BaseSettings):
     # counts as 64. The free tier allows 100/minute, so we shape to 90 and leave
     # headroom for retries. Measured against the live API, not guessed.
     embed_rpm: int = Field(default=75, alias="REPOSAGE_EMBED_RPM")
+    # Embedding requests are issued one at a time. Concurrency cannot beat a
+    # rate limit: the token bucket already sets the pace, and firing eight
+    # batches at once only converts smooth pacing into bursts that land
+    # together inside the provider's rolling window and trigger 429s.
+    embed_concurrency: int = Field(default=1, alias="REPOSAGE_EMBED_CONCURRENCY")
 
     @field_validator("data_dir", mode="before")
     @classmethod

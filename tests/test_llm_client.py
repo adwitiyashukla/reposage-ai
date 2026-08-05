@@ -327,3 +327,50 @@ class TestQuotaShaping:
             _asyncio.sleep = original
         await client.aclose()
         assert sum(delays) >= 60.0, f"total backoff {sum(delays):.1f}s cannot span a quota window"
+
+    async def test_embedding_is_serialised(self, settings):
+        """Concurrent embedding batches convert smooth pacing into bursts that
+        land together inside the provider's rolling window. The bucket sets the
+        throughput either way, so parallelism buys nothing and costs 429s."""
+        import asyncio as _asyncio
+
+        settings.embed_concurrency = 1
+        settings.embed_batch_size = 1
+        settings.embed_rpm = 0
+        settings.ensure_dirs()
+
+        in_flight = 0
+        peak = 0
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal in_flight, peak
+            in_flight += 1
+            peak = max(peak, in_flight)
+            await _asyncio.sleep(0.01)
+            in_flight -= 1
+            return httpx.Response(200, json={"embeddings": [{"values": [0.1, 0.2]}]})
+
+        client = LLMClient(
+            provider=GeminiProvider("k", transport=httpx.MockTransport(handler)),
+            settings=settings,
+            cache=ResponseCache(settings.cache_dir, enabled=False),
+        )
+        await client.embed([f"chunk {i}" for i in range(6)])
+        await client.aclose()
+        assert peak == 1, f"expected serialised embedding, saw {peak} concurrent requests"
+
+    async def test_generation_concurrency_is_unaffected(self, settings):
+        """Serialising embeddings must not serialise generation, which has its
+        own, much looser quota."""
+        settings.embed_concurrency = 1
+        settings.max_concurrency = 8
+        settings.ensure_dirs()
+        client = LLMClient(
+            provider=GeminiProvider(
+                "k", transport=httpx.MockTransport(lambda r: httpx.Response(200, json={}))
+            ),
+            settings=settings,
+            cache=ResponseCache(settings.cache_dir, enabled=False),
+        )
+        assert client._guard is not client._embed_guard
+        await client.aclose()

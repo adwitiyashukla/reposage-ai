@@ -80,6 +80,7 @@ class LLMClient:
         self._bucket = TokenBucket(self.settings.max_rpm)
         self._embed_bucket = TokenBucket(self.settings.embed_rpm)
         self._guard = ConcurrencyGuard(self.settings.max_concurrency)
+        self._embed_guard = ConcurrencyGuard(self.settings.embed_concurrency)
         self.usage = Usage()
 
     # ----------------------------------------------------------------- utils
@@ -108,6 +109,7 @@ class LLMClient:
         func: Any,
         *args: Any,
         _bucket: TokenBucket | None = None,
+        _guard: ConcurrencyGuard | None = None,
         _cost: int = 1,
         **kwargs: Any,
     ) -> Any:
@@ -118,11 +120,12 @@ class LLMClient:
         """
         attempts = max(1, self.settings.max_retries)
         bucket = _bucket or self._bucket
+        guard = _guard or self._guard
         last: Exception | None = None
         for attempt in range(attempts):
             try:
                 await bucket.acquire(_cost)
-                async with self._guard:
+                async with guard:
                     return await func(*args, **kwargs)
             except RateLimitError as exc:
                 last = exc
@@ -347,6 +350,7 @@ class LLMClient:
                         self.provider.embed,
                         [t for _, t in batch],
                         _bucket=self._embed_bucket,
+                        _guard=self._embed_guard,
                         _cost=len(batch),
                         model=model,
                         task_type=task_type,
