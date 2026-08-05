@@ -1,0 +1,34 @@
+# Run the whole thing with:  docker compose up --build
+#
+# Indexes live in a named volume, so rebuilding the image does not throw away
+# work that cost embedding tokens to produce.
+services:
+  reposage:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: reposage:latest
+    container_name: reposage
+    ports:
+      - "8000:8000"
+    environment:
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY in your .env file}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      REPOSAGE_FAST_MODEL: ${REPOSAGE_FAST_MODEL:-gemini-flash-lite-latest}
+      REPOSAGE_DEEP_MODEL: ${REPOSAGE_DEEP_MODEL:-gemini-flash-latest}
+      REPOSAGE_EMBED_MODEL: ${REPOSAGE_EMBED_MODEL:-gemini-embedding-001}
+      REPOSAGE_LOG_LEVEL: ${REPOSAGE_LOG_LEVEL:-INFO}
+      REPOSAGE_MAX_CONCURRENCY: ${REPOSAGE_MAX_CONCURRENCY:-8}
+      REPOSAGE_DATA_DIR: /data
+    volumes:
+      - reposage-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  reposage-data:

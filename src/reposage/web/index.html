@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RepoSage - agentic code intelligence</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>R</text></svg>" />
+<style>
+  :root {
+    --bg: #0b0e14; --bg-elev: #11151f; --bg-elev-2: #161b27;
+    --border: #232a3a; --border-soft: #1b2130;
+    --text: #dee3ee; --text-dim: #8b95ab; --text-faint: #5d6679;
+    --accent: #6ea8fe; --accent-dim: #3d6fc4;
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171; --purple: #c084fc;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    --r: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  button, input, select, textarea { font-family: inherit; font-size: inherit; color: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #262d3d; border-radius: 5px; }
+  ::-webkit-scrollbar-thumb:hover { background: #333c50; }
+
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 0 18px;
+    height: 56px; border-bottom: 1px solid var(--border);
+    background: var(--bg-elev); flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 650; letter-spacing: -0.02em; font-size: 15px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+    color: #0b0e14; font-weight: 800; font-size: 14px;
+  }
+  .brand small { color: var(--text-faint); font-weight: 400; font-size: 11px; letter-spacing: 0; }
+  .spacer { flex: 1; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 100px; background: var(--bg-elev-2); border: 1px solid var(--border);
+    font-size: 11.5px; color: var(--text-dim);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-faint); }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px rgba(74,222,128,.55); }
+  .dot.warn { background: var(--amber); }
+  .dot.err { background: var(--red); }
+
+  .layout { flex: 1; display: grid; grid-template-columns: 268px 1fr 340px; min-height: 0; }
+  .panel { min-height: 0; overflow-y: auto; }
+  .sidebar { border-right: 1px solid var(--border); background: var(--bg-elev); padding: 16px; }
+  .tracepane { border-left: 1px solid var(--border); background: var(--bg-elev); padding: 16px; }
+  .main { display: flex; flex-direction: column; min-height: 0; }
+
+  .section-label {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--text-faint); font-weight: 650; margin-bottom: 9px;
+  }
+  .section + .section { margin-top: 22px; }
+
+  .field {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; outline: none; transition: border-color .15s;
+  }
+  .field:focus { border-color: var(--accent-dim); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--accent); color: #08101f; border: 0; border-radius: 8px;
+    padding: 8px 14px; font-weight: 600; cursor: pointer; transition: filter .15s, opacity .15s;
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn.ghost:hover:not(:disabled) { color: var(--text); border-color: var(--accent-dim); }
+  .btn.sm { padding: 5px 10px; font-size: 12px; }
+
+  .repo-item {
+    display: block; width: 100%; text-align: left; background: transparent;
+    border: 1px solid transparent; border-radius: 8px; padding: 9px 10px;
+    cursor: pointer; margin-bottom: 3px; transition: background .12s, border-color .12s;
+  }
+  .repo-item:hover { background: var(--bg-elev-2); }
+  .repo-item.active { background: var(--bg-elev-2); border-color: var(--accent-dim); }
+  .repo-item .name { font-weight: 600; font-size: 13px; }
+  .repo-item .meta { font-size: 11px; color: var(--text-faint); font-family: var(--mono); }
+
+  .composer { padding: 18px 24px; border-bottom: 1px solid var(--border-soft); flex-shrink: 0; }
+  .composer-row { display: flex; gap: 10px; }
+  #question { flex: 1; resize: none; min-height: 44px; max-height: 160px; line-height: 1.5; }
+  .suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chip {
+    background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 100px;
+    padding: 4px 11px; font-size: 11.5px; color: var(--text-dim); cursor: pointer; transition: all .12s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent-dim); }
+
+  .conversation { flex: 1; overflow-y: auto; padding: 24px; }
+  .empty { max-width: 620px; margin: 8vh auto; text-align: center; color: var(--text-dim); }
+  .empty h2 { font-size: 22px; color: var(--text); margin-bottom: 10px; font-weight: 650; letter-spacing: -.02em; }
+  .empty .steps { text-align: left; margin-top: 26px; display: grid; gap: 12px; }
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--bg-elev-2);
+    border: 1px solid var(--border); display: grid; place-items: center;
+    font-size: 11px; font-weight: 700; color: var(--accent); flex-shrink: 0; margin-top: 2px;
+  }
+
+  .qa { margin-bottom: 30px; }
+  .qa .q {
+    font-size: 15.5px; font-weight: 600; color: var(--text); margin-bottom: 14px;
+    padding-left: 12px; border-left: 2.5px solid var(--accent);
+  }
+  .answer { font-size: 14.5px; }
+  .answer h1, .answer h2, .answer h3 { margin: 20px 0 8px; font-weight: 650; letter-spacing: -.01em; }
+  .answer h1 { font-size: 19px; } .answer h2 { font-size: 16.5px; } .answer h3 { font-size: 14.5px; color: var(--text-dim); }
+  .answer p { margin: 9px 0; }
+  .answer ul, .answer ol { margin: 9px 0 9px 22px; }
+  .answer li { margin: 4px 0; }
+  .answer code { font-family: var(--mono); font-size: 12.5px; background: var(--bg-elev-2); padding: 1.5px 5px; border-radius: 4px; color: var(--purple); }
+  .answer pre {
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r);
+    padding: 13px 15px; overflow-x: auto; margin: 12px 0;
+  }
+  .answer pre code { background: none; padding: 0; color: var(--text); font-size: 12.5px; line-height: 1.55; }
+  .answer blockquote { border-left: 2px solid var(--border); padding-left: 12px; color: var(--text-dim); margin: 10px 0; }
+  .answer strong { color: #fff; font-weight: 650; }
+  .cite {
+    display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 11.5px;
+    background: rgba(110,168,254,.12); border: 1px solid rgba(110,168,254,.3);
+    color: var(--accent); border-radius: 5px; padding: 0 5px; cursor: pointer;
+    vertical-align: baseline; transition: background .12s;
+  }
+  .cite:hover { background: rgba(110,168,254,.24); }
+  .cursor { display: inline-block; width: 7px; height: 15px; background: var(--accent); vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .answer-footer {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border-soft);
+  }
+  .stat { font-size: 11.5px; color: var(--text-faint); font-family: var(--mono); }
+  .conf { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; }
+  .conf-bar { width: 54px; height: 5px; border-radius: 3px; background: var(--bg-elev-2); overflow: hidden; }
+  .conf-bar i { display: block; height: 100%; border-radius: 3px; }
+
+  .citations { margin-top: 14px; }
+  .citation {
+    display: flex; gap: 10px; align-items: baseline; padding: 7px 10px; border-radius: 7px;
+    background: var(--bg-elev); border: 1px solid var(--border-soft); margin-bottom: 5px;
+    cursor: pointer; transition: border-color .12s;
+  }
+  .citation:hover { border-color: var(--accent-dim); }
+  .citation .loc { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .citation .sym { font-size: 11.5px; color: var(--text-faint); }
+
+  .trace-row {
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px;
+    font-size: 12px; animation: slidein .18s ease-out;
+  }
+  @keyframes slidein { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+  .trace-row .glyph { width: 13px; text-align: center; flex-shrink: 0; font-size: 10px; }
+  .trace-row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trace-row .ms { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
+  .trace-row.running { background: rgba(110,168,254,.08); }
+  .trace-row.running .label { color: var(--accent); }
+  .trace-row.done .label { color: var(--text-dim); }
+  .trace-row.log .label { color: var(--text-faint); font-size: 11px; font-style: italic; }
+  .trace-row.err .label { color: var(--red); }
+  .spin { display: inline-block; animation: spin .9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .kv { display: flex; justify-content: space-between; font-size: 12px; padding: 3px 0; }
+  .kv span:first-child { color: var(--text-faint); }
+  .kv span:last-child { font-family: var(--mono); }
+  .plan-q { font-size: 11.5px; color: var(--text-dim); padding: 3px 0 3px 10px; border-left: 1px solid var(--border); margin-bottom: 3px; }
+  .card { background: var(--bg-elev-2); border: 1px solid var(--border-soft); border-radius: 8px; padding: 10px 12px; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(4,6,11,.78); backdrop-filter: blur(3px);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 32px;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px;
+    width: min(940px, 100%); max-height: 82vh; display: flex; flex-direction: column;
+    box-shadow: 0 24px 70px rgba(0,0,0,.6);
+  }
+  .modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .modal-body { overflow: auto; padding: 0; }
+  .modal-title { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .code-line { display: flex; font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
+  .code-line .no { width: 54px; flex-shrink: 0; text-align: right; padding-right: 14px; color: var(--text-faint); user-select: none; }
+  .code-line .src { white-space: pre; padding-right: 18px; }
+  .code-line.hl { background: rgba(110,168,254,.1); }
+  .code-line.hl .no { color: var(--accent); }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 9px;
+    padding: 10px 16px; font-size: 13px; z-index: 60; box-shadow: 0 10px 32px rgba(0,0,0,.5);
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast.err { border-color: var(--red); color: var(--red); }
+
+  .progress { height: 3px; background: var(--bg-elev-2); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress i { display: block; height: 100%; width: 30%; background: var(--accent); animation: indet 1.1s ease-in-out infinite; }
+  @keyframes indet { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
+
+  @media (max-width: 1180px) { .layout { grid-template-columns: 240px 1fr; } .tracepane { display: none; } }
+  @media (max-width: 780px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">R</div>
+    <div>RepoSage<br /><small>agentic code intelligence</small></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="pill" id="model-pill" title="Configured models"><span class="dot"></span><span id="model-text">connecting</span></div>
+  <a class="pill" href="/docs" target="_blank" rel="noopener">API docs</a>
+</header>
+
+<div class="layout">
+  <aside class="sidebar panel">
+    <div class="section">
+      <div class="section-label">Index a repository</div>
+      <input class="field" id="source-input" placeholder="owner/repo or a local path" spellcheck="false" />
+      <button class="btn sm" id="index-btn" style="margin-top:8px;width:100%">Build index</button>
+      <div id="index-progress" style="display:none">
+        <div class="progress"><i></i></div>
+        <div class="stat" id="index-status" style="margin-top:6px">starting</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Indexed repositories</div>
+      <div id="repo-list"><div class="stat">loading</div></div>
+    </div>
+
+    <div class="section" id="repo-detail-section" style="display:none">
+      <div class="section-label">Index details</div>
+      <div class="card" id="repo-detail"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="composer">
+      <div class="composer-row">
+        <textarea class="field" id="question" rows="1" placeholder="Ask anything about this codebase. Enter to send, Shift+Enter for a new line." spellcheck="false"></textarea>
+        <button class="btn" id="ask-btn">Ask</button>
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <div class="conversation panel" id="conversation">
+      <div class="empty" id="empty-state">
+        <h2>Understand any codebase in minutes</h2>
+        <p>RepoSage indexes a repository with AST-aware chunking, retrieves over it with hybrid search, and answers with verified line-level citations.</p>
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><div><strong>Index a repository.</strong> Paste <code>owner/repo</code> in the sidebar. A medium project takes a minute or two.</div></div>
+          <div class="step"><div class="step-num">2</div><div><strong>Ask an architectural question.</strong> "How does authentication work?" beats "find the login function".</div></div>
+          <div class="step"><div class="step-num">3</div><div><strong>Verify every claim.</strong> Click any citation to read the exact lines the answer was built from.</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="tracepane panel">
+    <div class="section">
+      <div class="section-label">Agent trace</div>
+      <div id="trace"><div class="stat">Ask a question to see the agent work.</div></div>
+    </div>
+    <div class="section" id="plan-section" style="display:none">
+      <div class="section-label">Retrieval plan</div>
+      <div id="plan"></div>
+    </div>
+    <div class="section" id="usage-section" style="display:none">
+      <div class="section-label">Run cost</div>
+      <div id="usage"></div>
+    </div>
+  </aside>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal">
+  <div class="modal-head">
+    <span class="modal-title" id="modal-title"></span>
+    <div class="spacer"></div>
+    <button class="btn ghost sm" id="modal-close">Close</button>
+  </div>
+  <div class="modal-body" id="modal-body"></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+  const state = { repo: null, indexes: [], streaming: false, spans: new Map() };
+
+  const SUGGESTIONS = [
+    "What does this project do and how is it structured?",
+    "How does the main request flow work end to end?",
+    "Where is configuration loaded and validated?",
+    "What are the main abstractions and how do they interact?",
+    "How is error handling done across the codebase?",
+  ];
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function toast(message, isError = false) {
+    const el = $("toast");
+    el.textContent = message;
+    el.className = "toast show" + (isError ? " err" : "");
+    clearTimeout(el._t);
+    el._t = setTimeout(() => (el.className = "toast"), 3600);
+  }
+
+  async function api(path, options) {
+    const response = await fetch(path, options);
+    if (!response.ok) {
+      let detail = response.statusText;
+      try { detail = (await response.json()).detail || detail; } catch (_) {}
+      throw new Error(detail);
+    }
+    return response.json();
+  }
+
+  /**
+   * Minimal markdown renderer. Deliberately hand-rolled: the answer format is
+   * narrow and known, so a short renderer beats shipping a full parser to the
+   * browser. Citation markers become clickable chips.
+   */
+  function renderMarkdown(src) {
+    const blocks = [];
+    let text = String(src || "").replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+      blocks.push("<pre><code>" + esc(code.replace(/\n$/, "")) + "</code></pre>");
+      return " BLOCK" + (blocks.length - 1) + " ";
+    });
+
+    text = esc(text)
+      .replace(/\[([^\[\]\s]+?\.[A-Za-z0-9_]+):(\d+)(?:\s*-\s*(\d+))?\]/g,
+        (_, path, start, end) =>
+          '<span class="cite" data-path="' + path + '" data-line="' + start + '">'
+          + path + ":" + start + (end ? "-" + end : "") + "</span>")
+      .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+
+    const out = [];
+    let list = null;
+    const closeList = () => { if (list) { out.push("</" + list + ">"); list = null; } };
+    for (const raw of text.split("\n")) {
+      const line = raw.trimEnd();
+      const heading = line.match(/^(#{1,4})\s+(.*)$/);
+      const bullet = line.match(/^\s*[-*+]\s+(.*)$/);
+      const numbered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+
+      if (heading) { closeList(); const n = heading[1].length; out.push("<h" + n + ">" + heading[2] + "</h" + n + ">"); }
+      else if (bullet) { if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; } out.push("<li>" + bullet[1] + "</li>"); }
+      else if (numbered) { if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; } out.push("<li>" + numbered[1] + "</li>"); }
+      else if (/^\s*&gt;\s?/.test(line)) { closeList(); out.push("<blockquote>" + line.replace(/^\s*&gt;\s?/, "") + "</blockquote>"); }
+      else if (!line.trim()) { closeList(); }
+      else { closeList(); out.push("<p>" + line + "</p>"); }
+    }
+    closeList();
+    return out.join("\n").replace(/ BLOCK(\d+) /g, (_, i) => blocks[+i]);
+  }
+
+  async function loadHealth() {
+    const pill = $("model-pill").querySelector(".dot");
+    try {
+      const health = await api("/api/health");
+      const configured = health.llm.configured;
+      pill.className = "dot " + (configured ? "ok" : "warn");
+      $("model-text").textContent = configured
+        ? health.llm.deep_model + " · v" + health.version
+        : "GEMINI_API_KEY not set";
+      if (!configured) toast("Set GEMINI_API_KEY in your .env file to enable the model.", true);
+    } catch (err) {
+      pill.className = "dot err";
+      $("model-text").textContent = "API unreachable";
+    }
+  }
+
+  async function loadIndexes() {
+    try {
+      state.indexes = (await api("/api/indexes")).indexes;
+    } catch (err) { state.indexes = []; }
+
+    const list = $("repo-list");
+    if (!state.indexes.length) {
+      list.innerHTML = '<div class="stat">No indexes yet. Build one above.</div>';
+      return;
+    }
+    list.innerHTML = state.indexes.map((entry) =>
+      '<button class="repo-item ' + (entry.id === state.repo ? "active" : "") + '" data-id="' + esc(entry.id) + '">'
+      + '<div class="name">' + esc(entry.name) + "</div>"
+      + '<div class="meta">' + entry.files.toLocaleString() + " files · "
+      + entry.chunks.toLocaleString() + " chunks · " + esc(entry.commit || "local") + "</div></button>").join("");
+    list.querySelectorAll(".repo-item").forEach((node) =>
+      node.addEventListener("click", () => selectRepo(node.dataset.id)));
+
+    if (!state.repo && state.indexes.length) selectRepo(state.indexes[0].id);
+  }
+
+  async function selectRepo(id) {
+    state.repo = id;
+    document.querySelectorAll(".repo-item").forEach((node) =>
+      node.classList.toggle("active", node.dataset.id === id));
+    try {
+      const detail = await api("/api/indexes/" + encodeURIComponent(id));
+      const meta = detail.metadata;
+      $("repo-detail-section").style.display = "";
+      $("repo-detail").innerHTML = [
+        ["files", meta.num_files.toLocaleString()],
+        ["chunks", meta.num_chunks.toLocaleString()],
+        ["lines", (meta.total_lines || 0).toLocaleString()],
+        ["vectors", detail.vector_store.vectors.toLocaleString() + " × " + detail.vector_store.dim],
+        ["vocabulary", detail.lexical.vocabulary.toLocaleString()],
+        ["commit", (meta.commit || "local").slice(0, 8)],
+      ].map(([k, v]) => '<div class="kv"><span>' + k + "</span><span>" + esc(v) + "</span></div>").join("");
+    } catch (err) { /* detail is optional */ }
+  }
+
+  function buildIndex() {
+    const source = $("source-input").value.trim();
+    if (!source) { toast("Enter a repository first.", true); return; }
+    $("index-btn").disabled = true;
+    $("index-progress").style.display = "";
+    $("index-status").textContent = "resolving repository";
+
+    const stream = new EventSource("/api/indexes/stream/build?source=" + encodeURIComponent(source));
+    const LABELS = {
+      "ingest.resolve": "cloning repository",
+      "ingest.walk": "scanning files",
+      "ingest.chunk": "parsing and chunking",
+      "index.embed": "embedding chunks",
+      "llm.embed": "embedding chunks",
+      "index.lexical": "building lexical index",
+    };
+    const stop = () => {
+      stream.close();
+      $("index-btn").disabled = false;
+      $("index-progress").style.display = "none";
+    };
+    stream.addEventListener("progress", (event) => {
+      const payload = JSON.parse(event.data);
+      if (payload.type === "span_start" && LABELS[payload.name]) {
+        $("index-status").textContent = LABELS[payload.name];
+      }
+    });
+    stream.addEventListener("complete", (event) => {
+      const payload = JSON.parse(event.data);
+      stop();
+      $("source-input").value = "";
+      toast("Indexed " + payload.name + ": " + payload.chunks.toLocaleString()
+            + " chunks from " + payload.files.toLocaleString() + " files.");
+      state.repo = payload.index;
+      loadIndexes();
+    });
+    stream.addEventListener("error", (event) => {
+      stop();
+      let message = "Indexing failed.";
+      try { message = JSON.parse(event.data).error; } catch (_) {}
+      toast(message, true);
+    });
+    stream.onerror = stop;
+  }
+
+  const SPAN_LABELS = {
+    "agent.plan": "Planning the search",
+    "agent.retrieve": "Retrieving context",
+    "agent.analyse": "Writing the answer",
+    "agent.critique": "Auditing the draft",
+    "agent.finalise": "Verifying citations",
+    "retrieval.hybrid": "Hybrid search",
+    "retrieval.rerank": "Reranking candidates",
+  };
+  const HIDDEN_SPANS = new Set(["agent.run", "llm.generate", "llm.stream", "llm.embed"]);
+
+  function resetTrace() {
+    state.spans.clear();
+    $("trace").innerHTML = "";
+    $("plan-section").style.display = "none";
+    $("usage-section").style.display = "none";
+  }
+
+  function traceStart(payload) {
+    if (HIDDEN_SPANS.has(payload.name)) return;
+    const row = document.createElement("div");
+    row.className = "trace-row running";
+    row.innerHTML = '<span class="glyph spin">◌</span><span class="label">'
+      + esc(SPAN_LABELS[payload.name] || payload.name) + '</span><span class="ms"></span>';
+    $("trace").appendChild(row);
+    state.spans.set(payload.span_id, row);
+  }
+
+  function traceEnd(payload) {
+    const row = state.spans.get(payload.span_id);
+    if (!row) return;
+    const attrs = payload.attributes || {};
+    const failed = attrs.status === "error";
+    row.className = "trace-row " + (failed ? "err" : "done");
+    const glyph = row.querySelector(".glyph");
+    glyph.className = "glyph";
+    glyph.textContent = failed ? "✗" : "✓";
+    row.querySelector(".ms").textContent = Math.round(payload.duration_ms) + "ms";
+
+    const notes = [];
+    if (attrs.queries) notes.push(attrs.queries + " queries");
+    if (attrs.returned) notes.push(attrs.returned + " chunks");
+    if (attrs.files) notes.push(attrs.files + " files");
+    if (attrs.verdict) notes.push(attrs.verdict);
+    if (attrs.citations !== undefined) notes.push(attrs.citations + " citations");
+    if (notes.length) {
+      const note = document.createElement("div");
+      note.className = "trace-row log";
+      note.innerHTML = '<span class="glyph"></span><span class="label">' + esc(notes.join(" · ")) + "</span>";
+      row.insertAdjacentElement("afterend", note);
+    }
+  }
+
+  function renderPlan(plan) {
+    if (!plan) return;
+    $("plan-section").style.display = "";
+    const parts = ['<div class="kv"><span>intent</span><span>' + esc(plan.intent || "") + "</span></div>"];
+    (plan.sub_questions || []).forEach((sub) => parts.push('<div class="plan-q">' + esc(sub.question) + "</div>"));
+    if (plan.path_hints && plan.path_hints.length) {
+      parts.push('<div class="kv" style="margin-top:6px"><span>path hints</span><span>'
+        + esc(plan.path_hints.slice(0, 3).join(", ")) + "</span></div>");
+    }
+    $("plan").innerHTML = parts.join("");
+  }
+
+  function renderUsage(usage, elapsed, refinements) {
+    $("usage-section").style.display = "";
+    $("usage").innerHTML = [
+      ["elapsed", elapsed.toFixed(1) + "s"],
+      ["model calls", usage.llm_calls],
+      ["prompt tokens", usage.prompt_tokens.toLocaleString()],
+      ["output tokens", usage.completion_tokens.toLocaleString()],
+      ["cache hits", usage.cache_hits],
+      ["refinements", refinements],
+      ["cost", "$" + usage.cost_usd.toFixed(5)],
+    ].map(([k, v]) => '<div class="kv"><span>' + k + "</span><span>" + v + "</span></div>").join("");
+  }
+
+  function ask() {
+    const question = $("question").value.trim();
+    if (!question) return;
+    if (!state.repo) { toast("Index a repository first.", true); return; }
+    if (state.streaming) return;
+
+    state.streaming = true;
+    $("ask-btn").disabled = true;
+    $("question").value = "";
+    autosize();
+    resetTrace();
+    const emptyState = $("empty-state");
+    if (emptyState) emptyState.remove();
+
+    const block = document.createElement("div");
+    block.className = "qa";
+    block.innerHTML = '<div class="q">' + esc(question) + "</div>"
+      + '<div class="answer"><span class="cursor"></span></div>'
+      + '<div class="citations"></div><div class="answer-footer" style="display:none"></div>';
+    $("conversation").appendChild(block);
+    block.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const answerEl = block.querySelector(".answer");
+    let buffer = "";
+    const stream = new EventSource("/api/ask/stream?repo=" + encodeURIComponent(state.repo)
+      + "&q=" + encodeURIComponent(question));
+
+    const finish = () => {
+      stream.close();
+      state.streaming = false;
+      $("ask-btn").disabled = false;
+    };
+
+    stream.addEventListener("span_start", (e) => traceStart(JSON.parse(e.data)));
+    stream.addEventListener("span_end", (e) => traceEnd(JSON.parse(e.data)));
+    stream.addEventListener("token", (e) => {
+      buffer += JSON.parse(e.data).attributes.text || "";
+      answerEl.innerHTML = renderMarkdown(buffer) + '<span class="cursor"></span>';
+      $("conversation").scrollTop = $("conversation").scrollHeight;
+    });
+    stream.addEventListener("final", (e) => {
+      const data = JSON.parse(e.data).attributes;
+      answerEl.innerHTML = renderMarkdown(data.answer || buffer);
+      renderPlan(data.plan);
+      renderUsage(data.usage, data.elapsed_seconds, data.refinement_rounds);
+
+      const citations = data.citations || [];
+      if (citations.length) {
+        block.querySelector(".citations").innerHTML =
+          '<div class="section-label" style="margin-top:16px">Sources</div>'
+          + citations.map((c) =>
+            '<div class="citation" data-path="' + esc(c.path) + '" data-line="' + c.start_line + '">'
+            + '<span class="loc">' + esc(c.path) + ":" + c.start_line + "-" + c.end_line + "</span>"
+            + '<span class="sym">' + esc(c.symbol || "") + "</span></div>").join("");
+      }
+
+      const confidence = data.confidence || 0;
+      const colour = confidence >= 0.7 ? "var(--green)" : confidence >= 0.45 ? "var(--amber)" : "var(--red)";
+      const tokens = (data.usage.prompt_tokens + data.usage.completion_tokens + data.usage.embedding_tokens);
+      const footer = block.querySelector(".answer-footer");
+      footer.style.display = "";
+      footer.innerHTML =
+        '<span class="conf" style="color:' + colour + '">confidence ' + Math.round(confidence * 100) + "%"
+        + '<span class="conf-bar"><i style="width:' + Math.round(confidence * 100) + "%;background:" + colour + '"></i></span></span>'
+        + '<span class="stat">' + data.elapsed_seconds.toFixed(1) + "s</span>"
+        + '<span class="stat">' + tokens.toLocaleString() + " tokens</span>"
+        + '<span class="stat">$' + data.usage.cost_usd.toFixed(5) + "</span>"
+        + '<span class="stat">' + data.retrieved_paths.length + " files retrieved</span>"
+        + (data.refinement_rounds ? '<span class="stat">' + data.refinement_rounds + " refinement(s)</span>" : "");
+      finish();
+    });
+    stream.addEventListener("error", (e) => {
+      let message = "The agent run failed.";
+      try { message = JSON.parse(e.data).attributes.error; } catch (_) {}
+      answerEl.innerHTML = '<p style="color:var(--red)">' + esc(message) + "</p>";
+      toast(message, true);
+      finish();
+    });
+    stream.onerror = () => {
+      if (!state.streaming) return;
+      const cursor = answerEl.querySelector(".cursor");
+      if (cursor) cursor.remove();
+      finish();
+    };
+  }
+
+  async function openSource(path, line) {
+    try {
+      const data = await api("/api/source/" + encodeURIComponent(state.repo)
+        + "?path=" + encodeURIComponent(path));
+      const target = parseInt(line, 10) || 1;
+      const segment = data.segments.find((s) => s.start_line <= target && target <= s.end_line) || data.segments[0];
+      const body = segment.content.split("\n")
+        .filter((l) => !l.startsWith("// file:") && !l.startsWith("// imports:"));
+      $("modal-title").textContent = path + ":" + segment.start_line + "-" + segment.end_line;
+      $("modal-body").innerHTML = '<div style="padding:14px 0">' + body.map((code, i) => {
+        const number = segment.start_line + i;
+        return '<div class="code-line ' + (number === target ? "hl" : "") + '">'
+          + '<span class="no">' + number + '</span><span class="src">' + esc(code) + "</span></div>";
+      }).join("") + "</div>";
+      $("overlay").classList.add("open");
+      setTimeout(() => {
+        const hl = document.querySelector(".code-line.hl");
+        if (hl) hl.scrollIntoView({ block: "center" });
+      }, 40);
+    } catch (err) {
+      toast("Could not open " + path + ": " + err.message, true);
+    }
+  }
+
+  function autosize() {
+    const box = $("question");
+    box.style.height = "auto";
+    box.style.height = Math.min(box.scrollHeight, 160) + "px";
+  }
+
+  $("suggestions").innerHTML = SUGGESTIONS.map((s) => '<span class="chip">' + esc(s) + "</span>").join("");
+  $("suggestions").addEventListener("click", (e) => {
+    if (!e.target.classList.contains("chip")) return;
+    $("question").value = e.target.textContent;
+    autosize();
+    $("question").focus();
+  });
+
+  $("ask-btn").addEventListener("click", ask);
+  $("index-btn").addEventListener("click", buildIndex);
+  $("source-input").addEventListener("keydown", (e) => { if (e.key === "Enter") buildIndex(); });
+  $("question").addEventListener("input", autosize);
+  $("question").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
+  });
+  document.addEventListener("click", (e) => {
+    const node = e.target.closest(".cite, .citation");
+    if (node) openSource(node.dataset.path, node.dataset.line);
+  });
+  $("modal-close").addEventListener("click", () => $("overlay").classList.remove("open"));
+  $("overlay").addEventListener("click", (e) => { if (e.target === $("overlay")) $("overlay").classList.remove("open"); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("overlay").classList.remove("open"); });
+
+  loadHealth();
+  loadIndexes();
+})();
+</script>
+</body>
+</html>

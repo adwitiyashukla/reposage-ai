@@ -1,0 +1,84 @@
+name: Evaluation
+
+# Quality gate for retrieval and answer quality. This costs API tokens, so it
+# runs on demand, on a weekly schedule, and on pull requests that touch the
+# retrieval or agent code rather than on every push.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Only run the first N cases (blank runs all)"
+        required: false
+        default: ""
+      judge:
+        description: "Run LLM-as-judge scoring"
+        type: boolean
+        default: true
+  schedule:
+    - cron: "0 6 * * 1"
+  pull_request:
+    paths:
+      - "src/reposage/index/**"
+      - "src/reposage/ingest/**"
+      - "src/reposage/agents/**"
+      - "evals/**"
+
+jobs:
+  evaluate:
+    name: Retrieval and answer quality
+    runs-on: ubuntu-latest
+    # Without a key the job cannot run; skip rather than fail so forks are not
+    # blocked by a secret they cannot have.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,treesitter]"
+
+      - name: Check for an API key
+        id: key
+        run: |
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GEMINI_API_KEY is not configured; skipping evaluation."
+          fi
+
+      - name: Index this repository
+        if: steps.key.outputs.present == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: reposage index .
+
+      - name: Run evaluation
+        if: steps.key.outputs.present == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          ARGS="--repo reposage --output evals/REPORT.md --json evals/report.json"
+          if [ -n "${{ inputs.limit }}" ]; then ARGS="$ARGS --limit ${{ inputs.limit }}"; fi
+          if [ "${{ inputs.judge }}" = "false" ]; then ARGS="$ARGS --no-judge"; fi
+          # Quality gate: the run fails if retrieval or answer quality regresses.
+          python -m evals.run_evals $ARGS --min-recall 0.55 --min-pass-rate 0.60
+
+      - name: Publish the report to the job summary
+        if: always() && steps.key.outputs.present == 'true'
+        run: cat evals/REPORT.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload artefacts
+        if: always() && steps.key.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-report
+          path: |
+            evals/REPORT.md
+            evals/report.json
+          if-no-files-found: ignore

@@ -1,0 +1,76 @@
+name: "RepoSage PR review"
+description: "Review a pull request with RepoSage: context-aware AI code review grounded in the indexed repository."
+author: "Adwitiya Shukla"
+
+branding:
+  icon: "book-open"
+  color: "blue"
+
+inputs:
+  gemini-api-key:
+    description: "Gemini API key. Get a free one at https://aistudio.google.com/apikey."
+    required: true
+  github-token:
+    description: "Token with pull-requests: write. Usually secrets.GITHUB_TOKEN."
+    required: true
+    default: ${{ github.token }}
+  index-repository:
+    description: "Index the repository first so the review has surrounding code as context. Slower but far fewer false positives."
+    required: false
+    default: "true"
+  fail-on:
+    description: "Fail the job when findings at this severity or above are present: critical, high, medium, none."
+    required: false
+    default: "none"
+  min-confidence:
+    description: "Discard findings below this model confidence (0-1)."
+    required: false
+    default: "0.5"
+  deep-model:
+    description: "Model used for review reasoning."
+    required: false
+    default: "gemini-flash-latest"
+  python-version:
+    description: "Python version to run on."
+    required: false
+    default: "3.12"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Install RepoSage
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install "reposage[treesitter] @ git+https://github.com/adwitiyashukla/reposage-ai.git"
+
+    - name: Index the repository
+      if: inputs.index-repository == 'true'
+      shell: bash
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        REPOSAGE_DEEP_MODEL: ${{ inputs.deep-model }}
+      run: reposage index .
+
+    - name: Review
+      shell: bash
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        REPOSAGE_DEEP_MODEL: ${{ inputs.deep-model }}
+      run: |
+        REPO_ARG=""
+        if [ "${{ inputs.index-repository }}" = "true" ]; then
+          REPO_ARG="--repo $(reposage list 2>/dev/null | awk 'NR==4 {print $2}')"
+        fi
+        reposage review \
+          --pr "${GITHUB_REPOSITORY}#${{ github.event.pull_request.number }}" \
+          $REPO_ARG \
+          --post \
+          --fail-on "${{ inputs.fail-on }}"

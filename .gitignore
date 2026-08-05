@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.json
+
+# RepoSage runtime data
+.reposage/
+data/
+storage/
+*.index
+*.npz
+cache/
+.llm_cache/
+
+# Testing & coverage
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+.tox/
+
+# Eval artifacts (reports are committed, raw runs are not)
+evals/runs/
+evals/.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Local install logs
+install.log
+install.err
+
+# OS / OneDrive
+Thumbs.db
+desktop.ini
+.coverage.*

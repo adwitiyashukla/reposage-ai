@@ -1,0 +1,755 @@
+{
+  "repo": "ai proj",
+  "generated_at": "2026-08-05T02:31:37+00:00",
+  "prompt_version": "2026.08.1",
+  "config": {
+    "fast_model": "gemini-flash-lite-latest",
+    "deep_model": "gemini-flash-latest",
+    "embed_model": "gemini-embedding-001",
+    "embed_dimensions": 768,
+    "top_k": 12,
+    "candidate_k": 40,
+    "rrf_k": 60,
+    "enable_rerank": true,
+    "enable_critic": true,
+    "max_refinements": 2,
+    "chunk_max_lines": 120,
+    "chunk_overlap_lines": 15,
+    "index_chunks": 494,
+    "index_files": 81,
+    "commit": ""
+  },
+  "dataset_size": 6,
+  "ablation": [
+    {
+      "name": "dense only",
+      "description": "Embedding similarity alone. The naive RAG baseline.",
+      "aggregate": {
+        "cases": 6,
+        "hit_rate": 1.0,
+        "recall@k": 0.8056,
+        "precision@k": 0.2269,
+        "mrr": 0.6111,
+        "ndcg": 0.5747,
+        "mean_rank_of_first_hit": 2
+      },
+      "per_case": [
+        {
+          "case_id": "arch-overview",
+          "recall@k": 0.3333,
+          "precision@k": 0.25,
+          "mrr": 1.0,
+          "ndcg": 0.4693,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 4,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/agents/engine.py",
+            "src/reposage/index/retriever.py"
+          ]
+        },
+        {
+          "case_id": "chunking-strategy",
+          "recall@k": 1.0,
+          "precision@k": 0.1667,
+          "mrr": 0.5,
+          "ndcg": 0.6309,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 6,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "hybrid-retrieval",
+          "recall@k": 1.0,
+          "precision@k": 0.5,
+          "mrr": 0.3333,
+          "ndcg": 0.6039,
+          "hit": true,
+          "first_relevant_rank": 3,
+          "retrieved": 6,
+          "expected": 3,
+          "missed_paths": []
+        },
+        {
+          "case_id": "rrf-rationale",
+          "recall@k": 1.0,
+          "precision@k": 0.1667,
+          "mrr": 0.5,
+          "ndcg": 0.6309,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 6,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "agent-loop",
+          "recall@k": 0.5,
+          "precision@k": 0.1667,
+          "mrr": 1.0,
+          "ndcg": 0.6131,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 6,
+          "expected": 2,
+          "missed_paths": [
+            "src/reposage/agents/nodes/critic.py"
+          ]
+        },
+        {
+          "case_id": "citation-verification",
+          "recall@k": 1.0,
+          "precision@k": 0.1111,
+          "mrr": 0.3333,
+          "ndcg": 0.5,
+          "hit": true,
+          "first_relevant_rank": 3,
+          "retrieved": 9,
+          "expected": 1,
+          "missed_paths": []
+        }
+      ],
+      "elapsed_seconds": 1.58,
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "embedding_tokens": 131,
+        "llm_calls": 6,
+        "cache_hits": 0,
+        "cost_usd": 0.00001965
+      }
+    },
+    {
+      "name": "lexical only",
+      "description": "BM25 over code-aware tokens. No embeddings.",
+      "aggregate": {
+        "cases": 6,
+        "hit_rate": 1.0,
+        "recall@k": 0.6944,
+        "precision@k": 0.1372,
+        "mrr": 0.5571,
+        "ndcg": 0.5092,
+        "mean_rank_of_first_hit": 3
+      },
+      "per_case": [
+        {
+          "case_id": "arch-overview",
+          "recall@k": 0.3333,
+          "precision@k": 0.1429,
+          "mrr": 0.5,
+          "ndcg": 0.2961,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 7,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/agents/engine.py",
+            "src/reposage/index/retriever.py"
+          ]
+        },
+        {
+          "case_id": "chunking-strategy",
+          "recall@k": 1.0,
+          "precision@k": 0.125,
+          "mrr": 0.5,
+          "ndcg": 0.6309,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 8,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "hybrid-retrieval",
+          "recall@k": 0.3333,
+          "precision@k": 0.1111,
+          "mrr": 0.2,
+          "ndcg": 0.1815,
+          "hit": true,
+          "first_relevant_rank": 5,
+          "retrieved": 9,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/index/fusion.py",
+            "src/reposage/index/lexical.py"
+          ]
+        },
+        {
+          "case_id": "rrf-rationale",
+          "recall@k": 1.0,
+          "precision@k": 0.1667,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 6,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "agent-loop",
+          "recall@k": 0.5,
+          "precision@k": 0.1667,
+          "mrr": 1.0,
+          "ndcg": 0.6131,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 6,
+          "expected": 2,
+          "missed_paths": [
+            "src/reposage/agents/nodes/critic.py"
+          ]
+        },
+        {
+          "case_id": "citation-verification",
+          "recall@k": 1.0,
+          "precision@k": 0.1111,
+          "mrr": 0.1429,
+          "ndcg": 0.3333,
+          "hit": true,
+          "first_relevant_rank": 7,
+          "retrieved": 9,
+          "expected": 1,
+          "missed_paths": []
+        }
+      ],
+      "elapsed_seconds": 0.01,
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "embedding_tokens": 0,
+        "llm_calls": 0,
+        "cache_hits": 0,
+        "cost_usd": 0.0
+      }
+    },
+    {
+      "name": "hybrid + RRF",
+      "description": "Both retrievers fused by reciprocal rank fusion.",
+      "aggregate": {
+        "cases": 6,
+        "hit_rate": 1.0,
+        "recall@k": 0.8056,
+        "precision@k": 0.1828,
+        "mrr": 0.7778,
+        "ndcg": 0.6788,
+        "mean_rank_of_first_hit": 2
+      },
+      "per_case": [
+        {
+          "case_id": "arch-overview",
+          "recall@k": 0.3333,
+          "precision@k": 0.1667,
+          "mrr": 1.0,
+          "ndcg": 0.4693,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 6,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/agents/engine.py",
+            "src/reposage/index/retriever.py"
+          ]
+        },
+        {
+          "case_id": "chunking-strategy",
+          "recall@k": 1.0,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "hybrid-retrieval",
+          "recall@k": 1.0,
+          "precision@k": 0.3333,
+          "mrr": 0.5,
+          "ndcg": 0.634,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 9,
+          "expected": 3,
+          "missed_paths": []
+        },
+        {
+          "case_id": "rrf-rationale",
+          "recall@k": 1.0,
+          "precision@k": 0.2,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 5,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "agent-loop",
+          "recall@k": 0.5,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 0.6131,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 2,
+          "missed_paths": [
+            "src/reposage/agents/nodes/critic.py"
+          ]
+        },
+        {
+          "case_id": "citation-verification",
+          "recall@k": 1.0,
+          "precision@k": 0.1111,
+          "mrr": 0.1667,
+          "ndcg": 0.3562,
+          "hit": true,
+          "first_relevant_rank": 6,
+          "retrieved": 9,
+          "expected": 1,
+          "missed_paths": []
+        }
+      ],
+      "elapsed_seconds": 0.02,
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "embedding_tokens": 0,
+        "llm_calls": 0,
+        "cache_hits": 0,
+        "cost_usd": 0.0
+      }
+    },
+    {
+      "name": "hybrid + rerank",
+      "description": "Fusion, then LLM listwise reranking.",
+      "aggregate": {
+        "cases": 6,
+        "hit_rate": 1.0,
+        "recall@k": 0.8889,
+        "precision@k": 0.2054,
+        "mrr": 0.8333,
+        "ndcg": 0.797,
+        "mean_rank_of_first_hit": 1.33
+      },
+      "per_case": [
+        {
+          "case_id": "arch-overview",
+          "recall@k": 0.3333,
+          "precision@k": 0.1429,
+          "mrr": 0.5,
+          "ndcg": 0.2961,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 7,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/agents/engine.py",
+            "src/reposage/index/retriever.py"
+          ]
+        },
+        {
+          "case_id": "chunking-strategy",
+          "recall@k": 1.0,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "hybrid-retrieval",
+          "recall@k": 1.0,
+          "precision@k": 0.4286,
+          "mrr": 0.5,
+          "ndcg": 0.6546,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 7,
+          "expected": 3,
+          "missed_paths": []
+        },
+        {
+          "case_id": "rrf-rationale",
+          "recall@k": 1.0,
+          "precision@k": 0.125,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 8,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "agent-loop",
+          "recall@k": 1.0,
+          "precision@k": 0.25,
+          "mrr": 1.0,
+          "ndcg": 0.8316,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 8,
+          "expected": 2,
+          "missed_paths": []
+        },
+        {
+          "case_id": "citation-verification",
+          "recall@k": 1.0,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 1,
+          "missed_paths": []
+        }
+      ],
+      "elapsed_seconds": 8.96,
+      "usage": {
+        "prompt_tokens": 64307,
+        "completion_tokens": 3631,
+        "embedding_tokens": 0,
+        "llm_calls": 12,
+        "cache_hits": 0,
+        "cost_usd": 0.0078831
+      }
+    },
+    {
+      "name": "full pipeline",
+      "description": "Reranking plus adjacent-chunk expansion.",
+      "aggregate": {
+        "cases": 6,
+        "hit_rate": 1.0,
+        "recall@k": 0.8889,
+        "precision@k": 0.2054,
+        "mrr": 0.8333,
+        "ndcg": 0.797,
+        "mean_rank_of_first_hit": 1.33
+      },
+      "per_case": [
+        {
+          "case_id": "arch-overview",
+          "recall@k": 0.3333,
+          "precision@k": 0.1429,
+          "mrr": 0.5,
+          "ndcg": 0.2961,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 7,
+          "expected": 3,
+          "missed_paths": [
+            "src/reposage/agents/engine.py",
+            "src/reposage/index/retriever.py"
+          ]
+        },
+        {
+          "case_id": "chunking-strategy",
+          "recall@k": 1.0,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "hybrid-retrieval",
+          "recall@k": 1.0,
+          "precision@k": 0.4286,
+          "mrr": 0.5,
+          "ndcg": 0.6546,
+          "hit": true,
+          "first_relevant_rank": 2,
+          "retrieved": 7,
+          "expected": 3,
+          "missed_paths": []
+        },
+        {
+          "case_id": "rrf-rationale",
+          "recall@k": 1.0,
+          "precision@k": 0.125,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 8,
+          "expected": 1,
+          "missed_paths": []
+        },
+        {
+          "case_id": "agent-loop",
+          "recall@k": 1.0,
+          "precision@k": 0.25,
+          "mrr": 1.0,
+          "ndcg": 0.8316,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 8,
+          "expected": 2,
+          "missed_paths": []
+        },
+        {
+          "case_id": "citation-verification",
+          "recall@k": 1.0,
+          "precision@k": 0.1429,
+          "mrr": 1.0,
+          "ndcg": 1.0,
+          "hit": true,
+          "first_relevant_rank": 1,
+          "retrieved": 7,
+          "expected": 1,
+          "missed_paths": []
+        }
+      ],
+      "elapsed_seconds": 0.03,
+      "usage": {
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "embedding_tokens": 0,
+        "llm_calls": 0,
+        "cache_hits": 12,
+        "cost_usd": 0.0
+      }
+    }
+  ],
+  "answers": [
+    {
+      "case_id": "arch-overview",
+      "question": "What does this project do and what are its main components?",
+      "category": "architecture",
+      "answer": "RepoSage is an agentic code intelligence system designed for indexing, searching, and reasoning over Git repositories [src/reposage/__init__.py:1-6]. Its primary goal is to answer architectural questions with verified line-level citations and perform pull request reviews grounded in full repository context [README.md:3-8], [README.md:175-179]. It addresses common Retrieval-Augmented Generation (RAG) limitations—such as split function declarations, lack of exact identifier lookup, and unverified model hallucinations—by combining tree-sitter AST chunking, hybrid lexical and vector search, and a self-critiquing agent reasoning loop [README.md:21-32], [README.md:101-125].\n\n---\n\n### Core Modules and System Architecture\n\nThe codebase is organized into distinct functional layers [README.md:334-366]:\n\n#### 1. Ingestion (`src/reposage/ingest/`)\n* **Repository Walker (`walker.py`)**: Handles gitignore-aware directory traversal and importance ranking [README.md:338-339].\n* **AST Chunker (`chunker.py` & `languages.py`)**: Uses `tree-sitter` grammars to split source files into single-declaration chunks (functions, classes, methods), with fallbacks for unsupported languages [README.md:338-341], [README.md:101-112].\n* **Pipeline (`pipeline.py`)**: Orchestrates ingestion and produces a compressed, symbol-annotated repository map used by the agent during query planning [README.md:338-343], [docs/ARCHITECTURE.md:83-88].\n\n#### 2. Index and Hybrid Retrieval (`src/reposage/index/`)\n* **Vector Store (`vector_store.py`)**: Provides exact matrix cosine similarity search over dense embeddings [README.md:344-345], [README.md:297-308].\n* **Lexical Index (`lexical.py`)**: Implements a code-aware tokenizer and an in-tree BM25 inverted index with NumPy postings [README.md:344-346], [README.md:309-312].\n* **Fusion & Reranking (`fusion.py`, `reranker.py`, `retriever.py`)**: Combines dense and lexical search variants via Reciprocal Rank Fusion (RRF), diversifies results per file, and applies listwise LLM reranking (`HybridRetriever`) [README.md:344-349], [src/reposage/index/retriever.py:1-21].\n* **Lifecycle (`store.py`)**: Manages `RepoIndex` persistence and statistics [README.md:344-350].\n\n#### 3. Agent Pipeline (`src/reposage/agents/`)\n* **Execution Graph (`graph.py`, `nodes/`)**: Defines a multi-step LangGraph state machine spanning planning (`plan`), retrieval (`retrieve`), answer drafting (`analyse`), self-critique (`critique`), and citation verification (`finalise`) [README.md:68-100], [README.md:351-355], [tests/test_pipeline.py:120-155].\n* **Agent Engine (`engine.py`)**: Exposes `CodebaseAgent`, providing `ask()` for batch/CLI responses and `astream()` for streaming reasoning events to the UI [src/reposage/agents/engine.py:1-12], [src/reposage/agents/engine.py:34-48].\n* **Prompts (`prompts.py`)**: Centralizes versioned system and user prompts [README.md:351-352].\n\n#### 4. Pull Request Review (`src/reposage/review/`)\n* **Diff Parsing & Context (`diff.py`, `reviewer.py`)**: Parses unified diffs, calculates line mappings, retrieves surrounding repo context for touched symbols, and evaluates changes [README.md:175-179], [README.md:356-358].\n* **GitHub Integration (`github.py`)**: Manages comment posting and updates on GitHub pull requests [README.md:175-215], [README.md:356-359].\n\n#### 5. Infrastructure, Observability, and Interfaces\n* **LLM Provider (`src/reposage/llm/`)**: Communicates with model APIs via `httpx` behind an `LLMProvider` protocol, managing caching, pricing, and rate limits [README.md:297-304], [README.md:360].\n* **Observability (`src/reposage/observability/`)**: Captures execution spans, token accounting, and live event streaming [README.md:318-321], [README.md:361].\n* **Interfaces (`cli.py`, `api/`, `web/`)**: Provides a Typer command-line interface, a FastAPI web API, and a single-file UI [README.md:336-337], [README.md:362-363].\n* **Evaluation & Testing (`evals/`, `tests/`)**: Contains evaluation metrics/judges and an offline test suite operating with mock models [README.md:365-366], [README.md:374-383].",
+      "confidence": 0.97,
+      "citations": 35,
+      "citation_valid_rate": 1.0,
+      "fact_coverage": 1.0,
+      "retrieval": {
+        "case_id": "arch-overview",
+        "recall@k": 1.0,
+        "precision@k": 0.4286,
+        "mrr": 1.0,
+        "ndcg": 0.8529,
+        "hit": true,
+        "first_relevant_rank": 1,
+        "retrieved": 7,
+        "expected": 3,
+        "missed_paths": []
+      },
+      "judge": {
+        "correctness": 5,
+        "groundedness": 5,
+        "completeness": 5,
+        "overall": 5.0,
+        "passed": true,
+        "hallucinations": [],
+        "reasoning": "The answer under test is exceptionally thorough, accurate, and well-grounded in the codebase. It clearly explains what RepoSage does (agentic code intelligence, RAG over repositories, PR reviews) and details all its main components (Ingestion, Index & Hybrid Retrieval, Agent Pipeline, Pull Request Review, and Infrastructure/Interfaces) with specific file paths and module breakdowns matching the codebase."
+      },
+      "refinements": 0,
+      "elapsed_seconds": 31.622,
+      "cost_usd": 0.00687855,
+      "tokens": 24320,
+      "error": ""
+    },
+    {
+      "case_id": "chunking-strategy",
+      "question": "How are source files split into chunks, and why is that approach used instead of fixed-size splitting?",
+      "category": "retrieval",
+      "answer": "Fixed-size text splitting is avoided because it frequently severs functions and logic in half, causing vector search to match chunks that lack the context needed to answer queries [src/reposage/ingest/chunker.py:1-37]. Instead, RepoSage uses structural, AST-based chunking via tree-sitter to break code files into complete declaration units (functions, methods, classes) with exact line spans, identifiers, and deterministic context headers [src/reposage/ingest/chunker.py:1-37, docs/ARCHITECTURE.md:50-82].\n\n---\n\n### Why Fixed-Size Splitting Is Avoided\n\nAccording to module documentation and architecture notes:\n* **Retrieval failures**: Fixed-size chunking cuts functions across boundaries, meaning matched chunks often miss relevant code logic [src/reposage/ingest/chunker.py:1-37].\n* **Declaration boundaries**: Emitting one chunk per declaration ensures each retrieved unit is complete and compilable [src/reposage/ingest/chunker.py:1-37, README.md:101-131].\n* **Context enrichment**: Every chunk receives a deterministic header containing file path, language, and import statements, recovering contextual retrieval without extra LLM token costs [src/reposage/ingest/chunker.py:1-37, docs/ARCHITECTURE.md:50-82].\n* **High-level summaries**: Large classes/containers are poorly served by fixed windows or monolithic chunks; they are split into per-member chunks alongside a summary *skeleton* chunk listing member signatures for structural questions [src/reposage/ingest/chunker.py:1-37, docs/ARCHITECTURE.md:50-82].\n\n---\n\n### Parser Selection and Grammar Management\n\nParser selection and setup proceeds through `ASTChunker.chunk`:\n\n1. **Spec Identification**: `ASTChunker.chunk` retrieves a `LanguageSpec` for the file using its file extension/path [src/reposage/ingest/chunker.py:181-205].\n2. **Parser Registry**: For source code with a configured `spec.tree_sitter`, `_get_parser` looks up the language in `_GRAMMARS`, which maps language names to pre-compiled PyPI modules (e.g. `tree_sitter_python`) and factory attributes [src/reposage/ingest/chunker.py:48-68, src/reposage/ingest/chunker.py:69-88].\n3. **Dynamic Import**: `_get_parser` uses `importlib.import_module` to import the grammar wheel and instantiates `Parser(Language(...))` [src/reposage/ingest/chunker.py:69-88].\n4. **Error Handling and Fallback**:\n   * If a grammar is missing, wheel import fails, or AST parsing raises an exception, the system catches the error and falls back to `_chunk_lines` [src/reposage/ingest/chunker.py:69-88, src/reposage/ingest/chunker.py:181-205].\n   * `_chunk_lines` performs structure-aware line splitting that snaps window boundaries to blank lines and dedents [src/reposage/ingest/chunker.py:181-205, docs/ARCHITECTURE.md:50-82].\n\n---\n\n### AST Chunker Implementation and Control Flow\n\nWhen a valid tree-sitter parser is available, splitting is executed by `_chunk_with_ast`:\n\n1. **Header Construction**: `_file_context` extracts top-level imports (up to 12 lines) and builds a header prepended to every chunk in the file [src/reposage/ingest/chunker.py:208-256, src/reposage/ingest/chunker.py:479-493].\n2. **Declaration Scanning**:\n   * The tree-sitter root node's children are scanned against `spec.declaration_nodes` (defined per language in `src/reposage/ingest/languages.py`) [src/reposage/ingest/chunker.py:208-256, src/reposage/ingest/languages.py:15-26].\n   * Line ranges covered by top-level declarations are marked in a `covered` set [src/reposage/ingest/chunker.py:208-256].\n3. **Container vs. Function Splitting**:\n   * **Large Containers**: If a declaration's span exceeds `max_lines` (default 120 lines) and its node type is in `spec.container_nodes` (e.g., classes, structs, impl blocks), `_split_container` splits the container into member-level chunks (methods/fields) and generates a *skeleton* chunk containing the container signature and member signatures [src/reposage/ingest/chunker.py:208-256, src/reposage/ingest/chunker.py:258-330].\n   * **Oversized Declarations**: If a non-container node exceeds `max_lines * 2`, `_window` splits it into overlapping windows snapped to line boundaries [src/reposage/ingest/chunker.py:208-256, src/reposage/ingest/chunker.py:411-440].\n   * **Standard Declarations**: Nodes within line budgets are directly converted to chunks via `_make` [src/reposage/ingest/chunker.py:208-256, src/reposage/ingest/chunker.py:455-477].\n4. **Leftover Uncovered Lines**: `_uncovered_ranges` finds module-level code outside top-level declarations (like constants or script statements) and groups them into `MODULE` chunks using `_window` [src/reposage/ingest/chunker.py:208-256].\n5. **Markdown and Filter Exit**:",
+      "confidence": 0.97,
+      "citations": 4,
+      "citation_valid_rate": 1.0,
+      "fact_coverage": 1.0,
+      "retrieval": {
+        "case_id": "chunking-strategy",
+        "recall@k": 1.0,
+        "precision@k": 0.1667,
+        "mrr": 0.25,
+        "ndcg": 0.4307,
+        "hit": true,
+        "first_relevant_rank": 4,
+        "retrieved": 6,
+        "expected": 1,
+        "missed_paths": []
+      },
+      "judge": {
+        "correctness": 5,
+        "groundedness": 5,
+        "completeness": 5,
+        "overall": 5.0,
+        "passed": true,
+        "hallucinations": [],
+        "reasoning": "The answer under test is exceptionally detailed, accurate, and completely grounded in the codebase. It thoroughly explains how source files are split into chunks (using AST-based parsing via tree-sitter, declaration scanning, container splitting into members plus skeletons, line fallback, and windowing for oversized elements) and why this approach is used instead of fixed-size splitting (to preserve function boundaries, avoid logic severance, and provide deterministic context headers). All cited files, line ranges, and mechanisms match the actual repository structure."
+      },
+      "refinements": 1,
+      "elapsed_seconds": 52.821,
+      "cost_usd": 0.0149495,
+      "tokens": 50035,
+      "error": ""
+    },
+    {
+      "case_id": "hybrid-retrieval",
+      "question": "How does retrieval combine semantic and keyword search, and how are the two ranked lists merged?",
+      "category": "retrieval",
+      "answer": "`HybridRetriever` combines semantic (dense vector) and keyword (BM25 lexical) search by executing both retrievers concurrently across up to 8 query sub-phrasings [src/reposage/index/retriever.py:108-127]. The resulting document ID lists are collected into a dictionary of indexed rankings and merged using `reciprocal_rank_fusion` with dense weights set to `1.0` and lexical weights to `0.85` [src/reposage/index/retriever.py:41-42, 129-146]. Note that while `HybridRetriever` handles scoring and ranking assembly, the exact algorithmic math implementation of `reciprocal_rank_fusion` in `src/reposage/index/fusion.py` is not in the retrieved context and would need to be retrieved separately.\n\n---\n\n### Execution of Lexical and Semantic Search\n\nWhen `HybridRetriever.retrieve()` is invoked, search proceeds through parallel dense and lexical retrieval stages:\n\n1. **Query Preparation**: Up to 8 cleaned sub-queries are extracted [src/reposage/index/retriever.py:108].\n2. **Dense (Semantic) Search**:\n   - `_dense()` is dispatched as an asynchronous task via `asyncio.create_task(self._dense(queries, candidate_k))` [src/reposage/index/retriever.py:118-122].\n   - All query variants are embedded in a single batch request via `await self.client.embed(queries, task_type=\"RETRIEVAL_QUERY\")` [src/reposage/index/retriever.py:182].\n   - The matrix of query embeddings is searched against vector storage using `self.index.vectors.search_many(matrix, k)` to produce document ID lists for each query index [src/reposage/index/retriever.py:187-191].\n3. **Lexical (BM25) Search**:\n   - `_lexical()` is offloaded to a thread using `await asyncio.to_thread(self._lexical, queries, candidate_k)` [src/reposage/index/retriever.py:123-127].\n   - Each query is evaluated individually via `self.index.lexical.search(q, k)`",
+      "confidence": 0.97,
+      "citations": 6,
+      "citation_valid_rate": 1.0,
+      "fact_coverage": 0.5,
+      "retrieval": {
+        "case_id": "hybrid-retrieval",
+        "recall@k": 0.6667,
+        "precision@k": 0.3333,
+        "mrr": 0.2,
+        "ndcg": 0.3487,
+        "hit": true,
+        "first_relevant_rank": 5,
+        "retrieved": 6,
+        "expected": 3,
+        "missed_paths": [
+          "src/reposage/index/fusion.py"
+        ]
+      },
+      "judge": {
+        "correctness": 5,
+        "groundedness": 5,
+        "completeness": 5,
+        "overall": 5.0,
+        "passed": true,
+        "hallucinations": [],
+        "reasoning": "The answer provides a detailed and accurate explanation of how semantic and keyword searches are combined and ranked in `HybridRetriever`. It correctly identifies that dense vector search and BM25 search are executed concurrently across query variants (up to 8 sub-phrasings), uses specific code citations from the retriever module, and explains how the ranked lists are merged using reciprocal rank fusion. It is highly grounded, correct, and complete."
+      },
+      "refinements": 0,
+      "elapsed_seconds": 32.825,
+      "cost_usd": 0.0053749,
+      "tokens": 23974,
+      "error": ""
+    },
+    {
+      "case_id": "rrf-rationale",
+      "question": "Why is reciprocal rank fusion used rather than normalising and adding the retriever scores?",
+      "category": "retrieval",
+      "answer": "",
+      "confidence": 0.0,
+      "citations": 0,
+      "citation_valid_rate": 0.0,
+      "fact_coverage": 1.0,
+      "retrieval": {},
+      "judge": {},
+      "refinements": 0,
+      "elapsed_seconds": 0.0,
+      "cost_usd": 0.0,
+      "tokens": 0,
+      "error": "generate failed after 4 attempts: Gemini rate limit hit: {\n  \"error\": {\n    \"code\": 429,\n    \"message\": \"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your curren"
+    },
+    {
+      "case_id": "agent-loop",
+      "question": "What are the stages of the agent graph and under what condition does it loop back to retrieve again?",
+      "category": "agents",
+      "answer": "The agent graph consists of five stages: `plan`, `retrieve`, `analyse`, `critique`, and `finalise` [src/reposage/agents/graph.py:37-41]. It loops back from `critique` to `retrieve` whenever `critique.needs_refinement` evaluates to `True` [src/reposage/agents/graph.py:56-57]. This condition requires that the critic audit identifies specific, concrete follow-up queries to address evidence gaps [docs/ARCHITECTURE.md:200-205] [tests/test_pipeline.py:112-114].\n\n### Graph Structure and Stages\n\nThe graph is constructed as a `StateGraph(AgentState)` state machine [src/reposage/agents/graph.py:65]. Execution flows through the following stages:\n\n1. **`plan` (`planner_node`)**: Starts directly from `START` [src/reposage/agents/graph.py:73]. Uses the repository map to decompose the user's question into targeted search queries [docs/ARCHITECTURE.md:188].\n   - **Control Flow**: Evaluated by `route_after_plan` [src/reposage/agents/graph.py:74-78]. If `plan.needs_retrieval` is `False`, it skips search and routes directly to `analyse` [src/reposage/agents/graph.py:48-49]. Otherwise (or if `plan` is missing), it routes to `retrieve` [src/reposage/agents/graph.py:49] [tests/test_pipeline.py:109-110].\n2. **`retrieve` (`retriever_node`)**: Executes hybrid search and merges newly found code chunks with existing context [docs/ARCHITECTURE.md:189]. Automatically moves to `analyse` [src/reposage/agents/graph.py:79].\n3. **`analyse` (`analyst_node`)**: Drafts an answer from retrieved code chunks using inline citations [docs/ARCHITECTURE.md:190]. Automatically moves to `critique` [src/reposage/agents/graph.py:80].\n4. **`critique` (`critic_node`)**: Audits the draft for grounding and completeness [docs/ARCHITECTURE.md:191].\n   - **Control Flow**: Evaluated by `route_after_critique` [src/reposage/agents/graph.py:81-85]. Routes either back to `retrieve` or forward to `finalise` [src/reposage/agents/graph.py:56-58].\n5. **`finalise` (`finalizer_node`)**: Resolves and verifies inline citations against the index, scores confidence, and finishes execution at `END` [src/reposage/agents/graph.py:71, 86] [docs/ARCHITECTURE.md:192].\n\n### Conditions for Looping Back to Retrieval\n\nThe loop decision is handled by `route_after_critique(state)` [src/reposage/agents/graph.py:52-59]:\n\n- **Loop Back Condition**: Returns `\"retrieve\"` if state contains a `critique` object where `critique.needs_refinement` is `True` [src/reposage/agents/graph.py:56-57].\n- **Refinement Criteria**: A refinement round is triggered only when the critic emits concrete `follow_up_queries` [docs/ARCHITECTURE.md:200-205] [tests/test_pipeline.py:112-114].\n- **Exit Conditions**: Returns `\"finalise\"` and exits the loop if `critique` is `None` [src/reposage/agents/graph.py:54-55], if the verdict is accepted, or if no follow-up queries are provided [tests/test_pipeline.py:115-116].",
+      "confidence": 0.97,
+      "citations": 22,
+      "citation_valid_rate": 1.0,
+      "fact_coverage": 1.0,
+      "retrieval": {
+        "case_id": "agent-loop",
+        "recall@k": 0.5,
+        "precision@k": 0.1429,
+        "mrr": 0.2,
+        "ndcg": 0.2372,
+        "hit": true,
+        "first_relevant_rank": 5,
+        "retrieved": 7,
+        "expected": 2,
+        "missed_paths": [
+          "src/reposage/agents/nodes/critic.py"
+        ]
+      },
+      "judge": {
+        "correctness": 5,
+        "groundedness": 5,
+        "completeness": 5,
+        "overall": 5.0,
+        "passed": true,
+        "hallucinations": [],
+        "reasoning": "The answer provides a comprehensive, accurate, and well-grounded description of the agent graph stages and the conditions under which it loops back to retrieval. Every claim matches the codebase and architecture docs cited, detailing the plan, retrieve, analyse, critique, and finalise stages, and explaining that the loop back to retrieve happens based on `critique.needs_refinement` and the presence of follow-up queries."
+      },
+      "refinements": 0,
+      "elapsed_seconds": 19.868,
+      "cost_usd": 0.006294,
+      "tokens": 24898,
+      "error": ""
+    },
+    {
+      "case_id": "citation-verification",
+      "question": "How does the system make sure the citations in an answer actually point at real code?",
+      "category": "agents",
+      "answer": "The system ensures that answer citations point at real code through two mechanisms: runtime verification during finalization in the agent pipeline [src/reposage/agents/nodes/finalizer.py:18-60], and objective citation validity evaluation metrics [evals/metrics.py:119-124]. Unresolvable citations are stripped and penalize answer confidence [src/reposage/agents/nodes/finalizer.py:21-23, src/reposage/agents/nodes/finalizer.py:125-126].\n\n### Evaluation Harness Citation Validity Metrics\n\nIn the evaluation harness, citation verification is computed as an objective ratio:\n* `citation_validity(citations, indexed_paths)` calculates the fraction of citations whose `path` attribute exists in the set of indexed file paths [evals/metrics.py:119-124].\n* If no citations are present, it returns `{\"citations\": 0, \"valid_rate\": 0.0}` [evals/metrics.py:121].\n* For non-empty citations, it counts those where `getattr(c, \"path\", \"\") in indexed_paths` and computes `valid_rate = round(valid / len(citations), 4)` [evals/metrics.py:122-123].\n* Evaluation run metrics capture both total citation count (`citations`) and `citation_valid_rate` on `AnswerResult` [evals/harness.py:83-102].\n\n### Finalizer Agent Node Path and Symbol Verification\n\nWhen the agent finishes drafting an answer, the `finalizer_node` processes draft text through the following control flow:\n\n1. **Extraction**: `_CITATION` matches regex patterns like `[src/auth/jwt.py:12-48]` or single-line `[src/auth/jwt.py:12]` [src/reposage/agents/nodes/finalizer.py:15, src/reposage/agents/nodes/finalizer.py:37-42].\n2. **Path Resolution**: Known paths are loaded from index paths (`deps.retriever.index.paths()`) [src/reposage/agents/nodes/finalizer.py:27-28].\n   * Exact path matches are prioritized [src/reposage/agents/nodes/finalizer.py:44].\n   * If not an exact match, `_resolve_path(path, known)` attempts suffix matching against indexed paths (`p.endswith(path)` or `p.endswith(\"/\" + path)`) and selects the shortest candidate match [src/reposage/agents/nodes/finalizer.py:74-77].\n3. **Invalid Path Rejection**: If `_resolve_path` returns `None`, the match is dropped, and an `invalid` counter is incremented [src/reposage/agents/nodes/finalizer.py:45-47].\n4. **Symbol Resolution**: `_symbol_at(index, resolved, start, end)` searches the index's chunks (`index.chunks_for_path(path)`) for any chunk where `chunk.start_line <= start <= chunk.end_line` and returns `chunk.qualified_name` if present [src/reposage/agents/nodes/finalizer.py:80-85].\n5. **Excerpt Attachment**: Excerpt text is attached using `_excerpt(index, resolved, start, end)` [src/reposage/agents/nodes/finalizer.py:56] *(note: the implementation snippet for `_excerpt` is not present in the retrieved context)*.\n6. **Construct Citation**: Deduplicated `Citation` objects containing the resolved `path`, line range, `symbol`, and `excerpt` are created [src/reposage/agents/nodes/finalizer.py:48-57, src/reposage/models.py:147-158].\n7. **Scoring & Penalties**: The node passes verified citations and the `invalid` count to `_score()` [src/reposage/agents/nodes/finalizer.py:60].\n   * If invalid citations were discarded, the confidence score is scaled down by `max(0.4, 1.0 - 0.18 * invalid)` [src/reposage/agents/nodes/finalizer.py:125-126].\n   * Verified citation paths are also checked for overlap against retrieved candidate paths (`retrieved_paths`) to adjust overall confidence [src/reposage/agents/nodes/finalizer.py:118-121].",
+      "confidence": 0.64,
+      "citations": 14,
+      "citation_valid_rate": 1.0,
+      "fact_coverage": 1.0,
+      "retrieval": {
+        "case_id": "citation-verification",
+        "recall@k": 1.0,
+        "precision@k": 0.1667,
+        "mrr": 0.25,
+        "ndcg": 0.4307,
+        "hit": true,
+        "first_relevant_rank": 4,
+        "retrieved": 6,
+        "expected": 1,
+        "missed_paths": []
+      },
+      "judge": {
+        "correctness": 5,
+        "groundedness": 5,
+        "completeness": 5,
+        "overall": 5.0,
+        "passed": true,
+        "hallucinations": [],
+        "reasoning": "The answer is exceptionally detailed, accurate, and completely grounded in the codebase. It thoroughly explains the two mechanisms: runtime verification via the finalizer node and evaluation via metrics. It cites specific line numbers across multiple files that precisely match the codebase reality."
+      },
+      "refinements": 0,
+      "elapsed_seconds": 25.742,
+      "cost_usd": 0.00612395,
+      "tokens": 22898,
+      "error": ""
+    }
+  ],
+  "summary": {
+    "answered": 5,
+    "failed": 1,
+    "pass_rate": 1.0,
+    "mean_confidence": 0.904,
+    "mean_citations": 16.2,
+    "citation_valid_rate": 1.0,
+    "fact_coverage": 0.9,
+    "answer_recall@k": 0.8333,
+    "mean_latency_s": 32.58,
+    "mean_cost_usd": 0.007924,
+    "mean_tokens": 29225,
+    "total_refinements": 1,
+    "judge_correctness": 5,
+    "judge_groundedness": 5,
+    "judge_completeness": 5,
+    "judge_overall": 5.0,
+    "hallucination_cases": 0,
+    "retrieval_lift_vs_dense_only": 0.1034,
+    "best_variant": "hybrid + rerank"
+  },
+  "total_seconds": 106.87,
+  "total_cost_usd": 0.047524
+}

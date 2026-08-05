@@ -1,0 +1,114 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reposage"
+version = "1.0.0"
+description = "Agentic code intelligence: hybrid retrieval, multi-agent reasoning, and automated PR review for any Git repository."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Adwitiya Shukla" }]
+keywords = ["llm", "rag", "agents", "langgraph", "code-search", "static-analysis", "ai-engineering"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+]
+
+dependencies = [
+    "langgraph>=0.2.50",
+    "langchain-core>=0.3.15",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sse-starlette>=2.1.3",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "typer>=0.15.0",
+    "rich>=13.9.0",
+    "structlog>=24.4.0",
+    "httpx>=0.28.0",
+    "numpy>=1.26.0",
+    "diskcache>=5.6.3",
+    "pathspec>=0.12.1",
+    "python-dotenv>=1.0.1",
+    "orjson>=3.10.0",
+]
+
+[project.optional-dependencies]
+# Optional AST grammars. Without these, chunking falls back to structural
+# line splitting; with them, chunks align to real declarations.
+treesitter = [
+    "tree-sitter>=0.23.0",
+    "tree-sitter-python>=0.23.0",
+    "tree-sitter-javascript>=0.23.0",
+    "tree-sitter-typescript>=0.23.0",
+    "tree-sitter-go>=0.23.0",
+    "tree-sitter-rust>=0.23.0",
+    "tree-sitter-java>=0.23.0",
+    "tree-sitter-c>=0.23.0",
+    "tree-sitter-cpp>=0.23.0",
+    "tree-sitter-c-sharp>=0.23.0",
+    "tree-sitter-ruby>=0.23.0",
+    "tree-sitter-php>=0.23.0",
+    "tree-sitter-bash>=0.23.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "types-requests",
+]
+
+[project.scripts]
+reposage = "reposage.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/adwitiyashukla/reposage-ai"
+Repository = "https://github.com/adwitiyashukla/reposage-ai"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+reposage = ["web/*.html", "web/*.css", "web/*.js"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests", "evals"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ASYNC"]
+# ASYNC240: these are metadata-only path checks (exists/mkdir); dispatching
+# them to a thread pool would cost more than the syscall it avoids.
+ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003", "ASYNC240"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+disallow_untyped_defs = false
+plugins = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+asyncio_mode = "auto"
+addopts = "-q --strict-markers"
+markers = [
+    "integration: tests that require a live GEMINI_API_KEY",
+    "slow: long running tests",
+]

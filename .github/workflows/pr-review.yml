@@ -1,0 +1,66 @@
+name: RepoSage review
+
+# RepoSage reviews pull requests opened against this repository, which doubles
+# as a continuously running demonstration that the reviewer works on real code.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: AI code review
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[treesitter]"
+
+      - name: Guard on the API key
+        id: key
+        run: |
+          if [ -n "${{ secrets.GEMINI_API_KEY }}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GEMINI_API_KEY is not configured; skipping review."
+          fi
+
+      # Indexing the base branch lets the reviewer judge each change against the
+      # surrounding code instead of the diff in isolation, which is what removes
+      # most false positives.
+      - name: Index the repository for review context
+        if: steps.key.outputs.present == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: reposage index .
+
+      - name: Review the pull request
+        if: steps.key.outputs.present == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          reposage review \
+            --pr "${{ github.repository }}#${{ github.event.pull_request.number }}" \
+            --repo reposage \
+            --post \
+            --fail-on none

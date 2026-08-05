@@ -1,0 +1,5 @@
+"""HTTP interface."""
+
+from reposage.api.main import create_app
+
+__all__ = ["create_app"]

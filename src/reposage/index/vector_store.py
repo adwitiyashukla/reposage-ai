@@ -1,0 +1,152 @@
+"""Dense vector storage and search.
+
+The default implementation is exact (brute-force) cosine search over a single
+contiguous float32 matrix. That is a considered choice, not a shortcut:
+
+* a 4,000-file repository produces roughly 30k-80k chunks, and an exact
+  NumPy matmul over 80k x 768 floats completes in a few milliseconds,
+* exact search has perfect recall, so retrieval-quality regressions can never
+  be blamed on an approximate index,
+* it adds zero dependencies and no separate service to run.
+
+Beyond a few hundred thousand chunks an ANN index becomes worthwhile, which is
+why everything is written against the :class:`VectorStore` protocol. Swapping in
+FAISS, LanceDB or pgvector means adding one class, not editing callers.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Protocol, runtime_checkable
+
+import numpy as np
+
+from reposage.logging_setup import get_logger
+
+log = get_logger(__name__)
+
+
+@runtime_checkable
+class VectorStore(Protocol):
+    """Minimal contract for any dense index."""
+
+    def add(self, ids: list[str], vectors: np.ndarray) -> None: ...
+
+    def search(self, query: np.ndarray, k: int) -> list[tuple[str, float]]: ...
+
+    def save(self, directory: Path) -> None: ...
+
+    @classmethod
+    def load(cls, directory: Path) -> VectorStore: ...
+
+    def __len__(self) -> int: ...
+
+
+def _l2_normalise(matrix: np.ndarray) -> np.ndarray:
+    """Unit-normalise rows so cosine similarity reduces to a dot product."""
+    norms = np.linalg.norm(matrix, axis=1, keepdims=True)
+    np.maximum(norms, 1e-12, out=norms)
+    return matrix / norms
+
+
+class NumpyVectorStore:
+    """Exact cosine-similarity search over an in-memory float32 matrix."""
+
+    VECTORS_FILE = "vectors.npy"
+    IDS_FILE = "vector_ids.npy"
+
+    def __init__(self, dim: int | None = None) -> None:
+        self.dim = dim
+        self._ids: list[str] = []
+        self._matrix: np.ndarray | None = None
+
+    # -------------------------------------------------------------- mutation
+    def add(self, ids: list[str], vectors: np.ndarray) -> None:
+        if len(ids) != len(vectors):
+            raise ValueError(f"id/vector length mismatch: {len(ids)} vs {len(vectors)}")
+        if not ids:
+            return
+        matrix = np.asarray(vectors, dtype=np.float32)
+        if matrix.ndim != 2:
+            raise ValueError(f"expected a 2-D array, got shape {matrix.shape}")
+        if self.dim is None:
+            self.dim = matrix.shape[1]
+        elif matrix.shape[1] != self.dim:
+            raise ValueError(f"dimension mismatch: expected {self.dim}, got {matrix.shape[1]}")
+
+        matrix = _l2_normalise(matrix)
+        self._matrix = matrix if self._matrix is None else np.vstack([self._matrix, matrix])
+        self._ids.extend(ids)
+
+    # --------------------------------------------------------------- queries
+    def search(self, query: np.ndarray, k: int) -> list[tuple[str, float]]:
+        """Top-``k`` ``(chunk_id, cosine_similarity)`` pairs, best first."""
+        if self._matrix is None or not self._ids:
+            return []
+        vector = np.asarray(query, dtype=np.float32).reshape(-1)
+        if vector.shape[0] != self._matrix.shape[1]:
+            raise ValueError(
+                f"query dimension {vector.shape[0]} != index dimension {self._matrix.shape[1]}"
+            )
+        norm = float(np.linalg.norm(vector)) or 1e-12
+        scores = self._matrix @ (vector / norm)
+
+        k = min(k, scores.shape[0])
+        if k <= 0:
+            return []
+        # argpartition is O(n); a full sort of the whole corpus would not be.
+        top = np.argpartition(-scores, k - 1)[:k]
+        top = top[np.argsort(-scores[top])]
+        return [(self._ids[int(i)], float(scores[int(i)])) for i in top]
+
+    def search_many(self, queries: np.ndarray, k: int) -> list[list[tuple[str, float]]]:
+        """Batched search: one matmul for every query at once."""
+        if self._matrix is None or not self._ids:
+            return [[] for _ in range(len(queries))]
+        batch = _l2_normalise(np.asarray(queries, dtype=np.float32))
+        scores = batch @ self._matrix.T
+        k = min(k, scores.shape[1])
+        results: list[list[tuple[str, float]]] = []
+        for row in scores:
+            top = np.argpartition(-row, k - 1)[:k]
+            top = top[np.argsort(-row[top])]
+            results.append([(self._ids[int(i)], float(row[int(i)])) for i in top])
+        return results
+
+    # ----------------------------------------------------------- persistence
+    def save(self, directory: Path) -> None:
+        directory.mkdir(parents=True, exist_ok=True)
+        if self._matrix is None:
+            return
+        np.save(directory / self.VECTORS_FILE, self._matrix)
+        np.save(directory / self.IDS_FILE, np.array(self._ids, dtype=object), allow_pickle=True)
+        log.debug("vector_store.saved", vectors=len(self._ids), dim=self.dim)
+
+    @classmethod
+    def load(cls, directory: Path) -> NumpyVectorStore:
+        store = cls()
+        vectors_path = directory / cls.VECTORS_FILE
+        ids_path = directory / cls.IDS_FILE
+        if not vectors_path.exists() or not ids_path.exists():
+            return store
+        matrix = np.load(vectors_path).astype(np.float32, copy=False)
+        store._matrix = matrix
+        store._ids = [str(i) for i in np.load(ids_path, allow_pickle=True).tolist()]
+        store.dim = int(matrix.shape[1]) if matrix.size else None
+        return store
+
+    # ------------------------------------------------------------ introspect
+    def __len__(self) -> int:
+        return len(self._ids)
+
+    @property
+    def memory_mb(self) -> float:
+        return round(self._matrix.nbytes / 1024**2, 2) if self._matrix is not None else 0.0
+
+    def stats(self) -> dict[str, object]:
+        return {
+            "backend": "numpy-exact",
+            "vectors": len(self._ids),
+            "dim": self.dim,
+            "memory_mb": self.memory_mb,
+        }
