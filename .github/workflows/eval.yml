@@ -42,6 +42,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,treesitter]"
 
+      # Embeddings are the expensive, quota-limited part of a run. Restoring the
+      # content-addressed cache means a rerun re-embeds only what changed, which
+      # keeps the suite inside the free tier's daily allowance.
+      - name: Restore the embedding cache
+        uses: actions/cache@v4
+        with:
+          path: .reposage/cache
+          key: reposage-embed-${{ hashFiles('src/**/*.py', 'docs/**/*.md', 'README.md') }}
+          restore-keys: |
+            reposage-embed-
+
       - name: Check for an API key
         id: key
         run: |

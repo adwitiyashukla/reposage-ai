@@ -156,6 +156,24 @@ aggregate score can never tell you.
 
 ---
 
+## Running inside a free tier
+
+Embeddings, not generation, are the binding constraint. Indexing this repository
+is roughly 500 embedding requests, and Gemini's free tier limits them both per
+minute and per day.
+
+Two settings exist for this, and both were derived from measuring the live API
+rather than guessing:
+
+| Setting | Default | Why |
+| --- | --- | --- |
+| `REPOSAGE_EMBED_RPM` | `75` | The measured ceiling is 100 per minute, counted **per item**, so a batch of 32 spends 32. 75 leaves headroom for retries. |
+| `REPOSAGE_EMBED_CONCURRENCY` | `1` | Parallel batches cannot beat a rate limit; they only convert smooth pacing into bursts that land together inside the provider's window. |
+
+If a day's allowance runs out, indexing fails with an explicit quota error
+instead of silently producing a partial index. The embedding cache is
+content-addressed, so re-running after a reset re-embeds only what changed.
+
 ## Known limitations
 
 - **The judge shares a family with the system under test.** Same-family judges

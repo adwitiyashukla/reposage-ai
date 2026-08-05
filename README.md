@@ -9,7 +9,7 @@ and answer architectural questions with verified line-level citations.
 Then let it review your pull requests.
 
 [![CI](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml)
-[![Evaluation](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/eval.yml/badge.svg)](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/eval.yml)
+[![Evaluation report](https://img.shields.io/badge/evaluation-report-blue)](evals/REPORT.md)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://github.com/astral-sh/ruff)
@@ -238,6 +238,14 @@ as the code moves.
 
 In CI, `--min-recall` and `--min-pass-rate` turn the suite into a quality gate: a
 pull request that degrades retrieval fails before it merges.
+
+> **Free-tier note.** Indexing this repository costs roughly 500 embedding
+> requests, and Gemini's free tier caps embeddings per day as well as per
+> minute. Two or three full index builds will exhaust a day's allowance, after
+> which indexing fails with an explicit quota error rather than a partial index.
+> The embedding cache makes a retry resume almost instantly, and CI restores
+> that cache between runs, but a fresh index on an exhausted key has to wait for
+> the daily reset. The scheduled weekly evaluation is sized to stay inside it.
 
 ---
 
