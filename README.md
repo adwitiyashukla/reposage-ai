@@ -67,36 +67,13 @@ index before it is shown. Click one in the web UI and the exact lines open.
 
 ## Architecture
 
-```mermaid
-graph TB
-    subgraph Ingestion
-        A[Git repository] --> B[Walker<br/>gitignore, binaries, lockfiles,<br/>importance ranking]
-        B --> C[AST chunker<br/>tree-sitter, one chunk per declaration]
-        C --> D[Repository map<br/>symbol-annotated tree]
-    end
-
-    subgraph Index
-        C --> E[Gemini embeddings]
-        E --> F[(Vector store<br/>exact cosine)]
-        C --> G[(BM25<br/>code-aware tokens)]
-    end
-
-    subgraph Agent
-        Q[Question] --> P[Plan]
-        D -.repository map.-> P
-        P --> R[Retrieve]
-        F --> R
-        G --> R
-        R --> RRF[Reciprocal rank fusion]
-        RRF --> RR[LLM reranker]
-        RR --> AN[Analyse<br/>draft with citations]
-        AN --> CR{Critique<br/>grounded? complete?}
-        CR -->|refine| R
-        CR -->|accept| FI[Verify citations<br/>score confidence]
-    end
-
-    FI --> OUT[Answer + citations + cost]
-```
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/architecture-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/architecture-light.svg">
+    <img alt="RepoSage architecture: ingestion, hybrid index, and the self-correcting agent loop" src="docs/assets/architecture-light.svg" width="100%">
+  </picture>
+</p>
 
 ### The three fixes
 
