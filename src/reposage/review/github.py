@@ -130,7 +130,9 @@ class GitHubClient:
             f"/repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/reviews",
             content=orjson.dumps({"body": fallback, "event": "COMMENT"}),
         )
-        log.info("github.review_posted", pr=ref.slug, inline=0, review_event="COMMENT", degraded=True)
+        log.info(
+            "github.review_posted", pr=ref.slug, inline=0, review_event="COMMENT", degraded=True
+        )
         return response.json()
 
     async def upsert_summary_comment(self, ref: PullRequestRef, body: str) -> dict[str, Any]:

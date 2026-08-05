@@ -81,13 +81,23 @@ def report() -> ReviewReport:
         files_reviewed=2,
         findings=[
             ReviewFinding(
-                path="src/api.py", line=11, severity=Severity.HIGH, category="security",
-                title="SQL built by string interpolation", body="User input reaches the query.",
-                suggestion='row = db.query("SELECT ...", user_id)', confidence=0.92,
+                path="src/api.py",
+                line=11,
+                severity=Severity.HIGH,
+                category="security",
+                title="SQL built by string interpolation",
+                body="User input reaches the query.",
+                suggestion='row = db.query("SELECT ...", user_id)',
+                confidence=0.92,
             ),
             ReviewFinding(
-                path="src/api.py", line=None, severity=Severity.LOW, category="tests",
-                title="No test for the not-found path", body="Add one.", confidence=0.6,
+                path="src/api.py",
+                line=None,
+                severity=Severity.LOW,
+                category="tests",
+                title="No test for the not-found path",
+                body="Add one.",
+                confidence=0.6,
             ),
         ],
     )
@@ -151,7 +161,9 @@ class TestGitHubClient:
             return httpx.Response(200, json={"id": 1})
 
         client = GitHubClient("t", transport=httpx.MockTransport(handler))
-        await client.post_review(PullRequestRef("o", "r", 7), report, request_changes_on_blocking=True)
+        await client.post_review(
+            PullRequestRef("o", "r", 7), report, request_changes_on_blocking=True
+        )
         assert captured["event"] == "REQUEST_CHANGES"
         await client.aclose()
 
@@ -189,7 +201,9 @@ class TestGitHubClient:
         await client.aclose()
 
     async def test_api_errors_surface_clearly(self):
-        client = GitHubClient("t", transport=httpx.MockTransport(lambda r: httpx.Response(404, text="Not Found")))
+        client = GitHubClient(
+            "t", transport=httpx.MockTransport(lambda r: httpx.Response(404, text="Not Found"))
+        )
         with pytest.raises(GitHubError, match="404"):
             await client.get_pull_request(PullRequestRef("o", "r", 999))
         await client.aclose()

@@ -193,6 +193,10 @@ class TestConfidenceCalibration:
         from reposage.models import Citation, Critique
 
         citations = [Citation(path="a.py", start_line=1, end_line=2)]
-        grounded = _score({"critique": Critique(grounded=True, confidence=0.9)}, citations, 0, {"a.py"})
-        floating = _score({"critique": Critique(grounded=False, confidence=0.9)}, citations, 0, {"a.py"})
+        grounded = _score(
+            {"critique": Critique(grounded=True, confidence=0.9)}, citations, 0, {"a.py"}
+        )
+        floating = _score(
+            {"critique": Critique(grounded=False, confidence=0.9)}, citations, 0, {"a.py"}
+        )
         assert floating < grounded
