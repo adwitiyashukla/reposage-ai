@@ -53,7 +53,9 @@ class NumpyVectorStore:
     """Exact cosine-similarity search over an in-memory float32 matrix."""
 
     VECTORS_FILE = "vectors.npy"
-    IDS_FILE = "vector_ids.npy"
+    IDS_FILE = "vector_ids.txt"
+    # Indexes written before the format dropped pickled object arrays.
+    LEGACY_IDS_FILE = "vector_ids.npy"
 
     def __init__(self, dim: int | None = None) -> None:
         self.dim = dim
@@ -115,11 +117,20 @@ class NumpyVectorStore:
 
     # ----------------------------------------------------------- persistence
     def save(self, directory: Path) -> None:
+        """Persist the matrix and its row labels.
+
+        Ids are written as newline-delimited text rather than an object-dtype
+        ``.npy``. An object array can only be read back by unpickling, which
+        makes loading an index equivalent to executing whatever produced it, and
+        an index is exactly the kind of artefact people copy between machines
+        and bake into container images. Chunk ids are short hex strings, so text
+        costs nothing and the format stays inspectable with ``cat``.
+        """
         directory.mkdir(parents=True, exist_ok=True)
         if self._matrix is None:
             return
         np.save(directory / self.VECTORS_FILE, self._matrix)
-        np.save(directory / self.IDS_FILE, np.array(self._ids, dtype=object), allow_pickle=True)
+        (directory / self.IDS_FILE).write_text("\n".join(self._ids), encoding="utf-8")
         log.debug("vector_store.saved", vectors=len(self._ids), dim=self.dim)
 
     @classmethod
@@ -127,11 +138,22 @@ class NumpyVectorStore:
         store = cls()
         vectors_path = directory / cls.VECTORS_FILE
         ids_path = directory / cls.IDS_FILE
-        if not vectors_path.exists() or not ids_path.exists():
+        legacy_path = directory / cls.LEGACY_IDS_FILE
+
+        if not vectors_path.exists() or not (ids_path.exists() or legacy_path.exists()):
             return store
+
         matrix = np.load(vectors_path).astype(np.float32, copy=False)
         store._matrix = matrix
-        store._ids = [str(i) for i in np.load(ids_path, allow_pickle=True).tolist()]
+        if ids_path.exists():
+            store._ids = ids_path.read_text(encoding="utf-8").splitlines()
+        else:
+            # Older index written before the text format. Read it once so it can
+            # be re-saved without pickle rather than forcing a full re-index.
+            store._ids = [
+                str(i) for i in np.load(legacy_path, allow_pickle=True).tolist()
+            ]
+            log.info("vector_store.legacy_ids", path=str(legacy_path))
         store.dim = int(matrix.shape[1]) if matrix.size else None
         return store
 

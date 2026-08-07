@@ -28,7 +28,7 @@ WORKDIR $HOME/app
 # Pinned to an exact commit rather than a branch. A moving ref lets Docker
 # reuse its cached install layer, so a redeploy would silently ship whatever
 # code the layer was built from. Bump this to redeploy.
-ARG REPOSAGE_REF=5cbbf29e2f27b2e93c76b92e2366911d124562e0
+ARG REPOSAGE_REF=4a266334c27a1bc9cf3f5b113de70276f404a2a6
 RUN pip install --no-cache-dir --user \
     "reposage[treesitter] @ git+https://github.com/adwitiyashukla/reposage-ai.git@${REPOSAGE_REF}"
 

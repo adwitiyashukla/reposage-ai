@@ -128,3 +128,48 @@ class TestFusion:
 
     def test_empty_input_is_safe(self):
         assert reciprocal_rank_fusion({}) == []
+
+
+class TestVectorStorePersistenceFormat:
+    """An index gets copied between machines and baked into container images.
+    If loading one requires unpickling, loading an index is equivalent to
+    executing whatever produced it."""
+
+    def test_ids_are_stored_as_plain_text(self, tmp_path):
+        store = NumpyVectorStore()
+        store.add(["alpha", "beta"], np.eye(2, dtype=np.float32))
+        store.save(tmp_path)
+        text = (tmp_path / NumpyVectorStore.IDS_FILE).read_text(encoding="utf-8")
+        assert text.splitlines() == ["alpha", "beta"]
+
+    def test_no_pickled_object_arrays_are_written(self, tmp_path):
+        store = NumpyVectorStore()
+        store.add(["a"], np.zeros((1, 4), dtype=np.float32))
+        store.save(tmp_path)
+        for npy in tmp_path.glob("*.npy"):
+            # Loading without allow_pickle must succeed for every array we write.
+            np.load(npy)
+
+    def test_legacy_pickled_ids_still_load(self, tmp_path):
+        """Existing indexes must keep working rather than forcing a re-index,
+        which costs real money in embedding calls."""
+        vectors = np.eye(3, dtype=np.float32)
+        np.save(tmp_path / NumpyVectorStore.VECTORS_FILE, vectors)
+        np.save(
+            tmp_path / NumpyVectorStore.LEGACY_IDS_FILE,
+            np.array(["x", "y", "z"], dtype=object),
+            allow_pickle=True,
+        )
+        restored = NumpyVectorStore.load(tmp_path)
+        assert len(restored) == 3
+        assert restored.search(vectors[1], k=1)[0][0] == "y"
+
+    def test_a_legacy_index_can_be_rewritten_without_pickle(self, tmp_path):
+        np.save(tmp_path / NumpyVectorStore.VECTORS_FILE, np.eye(2, dtype=np.float32))
+        np.save(
+            tmp_path / NumpyVectorStore.LEGACY_IDS_FILE,
+            np.array(["p", "q"], dtype=object),
+            allow_pickle=True,
+        )
+        NumpyVectorStore.load(tmp_path).save(tmp_path)
+        assert (tmp_path / NumpyVectorStore.IDS_FILE).exists()

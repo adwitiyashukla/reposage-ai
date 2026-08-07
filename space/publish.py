@@ -89,6 +89,10 @@ def main() -> int:
         repo_type="space",
         # publish.py is tooling, not part of the running Space.
         ignore_patterns=["publish.py", "__pycache__/*", "*.pyc"],
+        # Without this, files removed locally linger on the Space forever. That
+        # matters here because a stale index file would still be found and
+        # loaded in preference to the current one.
+        delete_patterns=["index/*"],
         commit_message="Deploy RepoSage demo",
     )
 
