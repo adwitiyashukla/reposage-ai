@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: mit
-short_description: Ask an AI agent architectural questions about a codebase, with verified citations
+short_description: Ask an AI agent about a codebase, with citations
 tags:
   - rag
   - agents
