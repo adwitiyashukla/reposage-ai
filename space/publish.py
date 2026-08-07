@@ -88,10 +88,11 @@ def main() -> int:
         repo_id=repo_id,
         repo_type="space",
         # publish.py is tooling, not part of the running Space.
-        ignore_patterns=["publish.py", "__pycache__/*", "*.pyc"],
-        # Without this, files removed locally linger on the Space forever. That
-        # matters here because a stale index file would still be found and
-        # loaded in preference to the current one.
+        # The index is fetched from GitHub during the Docker build, because
+        # Hugging Face stores *.npy through LFS and the build would otherwise
+        # copy a pointer file. Uploading it here would be dead weight, and
+        # delete_patterns clears any copy left by an earlier deploy.
+        ignore_patterns=["publish.py", "index/*", "__pycache__/*", "*.pyc"],
         delete_patterns=["index/*"],
         commit_message="Deploy RepoSage demo",
     )
