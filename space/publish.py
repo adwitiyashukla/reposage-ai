@@ -80,6 +80,8 @@ def main() -> int:
                 "under 'Variables and secrets', or the demo cannot answer questions."
             )
 
+    _pin_commit()
+
     print("Uploading ...")
     api.upload_folder(
         folder_path=str(SPACE_DIR),
@@ -97,6 +99,36 @@ def main() -> int:
     print("\nThe first build takes a few minutes. Watch the Logs tab there.")
     print(f"Once it is running, the live demo is at:\n  https://{args.user}-{args.name}.hf.space")
     return 0
+
+
+def _pin_commit() -> None:
+    """Point the Space Dockerfile at the commit being deployed.
+
+    Installing from a branch lets Docker reuse its cached layer, so a redeploy
+    would appear to succeed while still running older code. Pinning the SHA
+    changes the Dockerfile on every deploy, which both busts the cache and makes
+    the running demo traceable to an exact commit.
+    """
+    import subprocess
+
+    try:
+        sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+    except Exception:
+        print("Could not read the current commit; leaving the pin unchanged.")
+        return
+
+    dockerfile = SPACE_DIR / "Dockerfile"
+    text = dockerfile.read_text(encoding="utf-8")
+    lines = []
+    for line in text.splitlines():
+        if line.startswith("ARG REPOSAGE_REF="):
+            line = f"ARG REPOSAGE_REF={sha}"
+        lines.append(line)
+    dockerfile.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"Pinned the Space to commit {sha[:8]}.")
 
 
 def _link_readme(repo_id: str) -> None:
