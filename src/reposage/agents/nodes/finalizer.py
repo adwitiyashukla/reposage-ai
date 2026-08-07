@@ -11,8 +11,46 @@ from reposage.observability import current_tracer
 
 log = get_logger(__name__)
 
-# Matches [src/auth/jwt.py:12-48] and the single-line form [src/auth/jwt.py:12].
-_CITATION = re.compile(r"\[([^\[\]\s]+?\.[A-Za-z0-9_]+):(\d+)(?:\s*-\s*(\d+))?\]")
+# Models group references far more often than the prompt asks them to, and the
+# grouped forms are the ones that carry the most evidence:
+#
+#   [src/auth/jwt.py:12-48]                          one reference
+#   [src/auth/jwt.py:12]                             a single line
+#   [src/auth/jwt.py:12-48, src/api.py:3-9]          two files at once
+#   [src/auth/jwt.py:12-48, 90-104]                  two ranges in the same file
+#
+# Matching only the first form discarded roughly half the citations in practice,
+# which then read as a low-evidence answer and depressed the confidence score.
+# So brackets are located first, then split on commas, with a bare range
+# inheriting the path from the reference before it.
+_BRACKET = re.compile(r"\[([^\[\]]{3,400}?)\]")
+_REF = re.compile(r"^\s*([^\s:]+?\.[A-Za-z0-9_]+):(\d+)(?:\s*[-\u2013]\s*(\d+))?\s*$")
+_BARE_RANGE = re.compile(r"^\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?\s*$")
+
+
+def parse_citation_markers(text: str) -> list[tuple[str, int, int]]:
+    """Extract ``(path, start, end)`` triples from inline citation markers."""
+    found: list[tuple[str, int, int]] = []
+    for bracket in _BRACKET.finditer(text or ""):
+        last_path: str | None = None
+        parts = bracket.group(1).split(",")
+        for part in parts:
+            if match := _REF.match(part):
+                path, start_raw, end_raw = match.groups()
+                last_path = path
+            elif last_path and (match := _BARE_RANGE.match(part)):
+                start_raw, end_raw = match.groups()
+                path = last_path
+            else:
+                # A bracket holding prose is not a citation; abandon the group
+                # so "[see below, line 4]" cannot inherit an unrelated path.
+                last_path = None
+                continue
+            start = int(start_raw)
+            end = int(end_raw) if end_raw else start
+            found.append((path, min(start, end), max(start, end)))
+    return found
+
 
 # The highest confidence the system will ever report. See _score.
 _CONFIDENCE_CEILING = 0.97
@@ -38,13 +76,7 @@ async def finalizer_node(state: AgentState, deps: AgentDeps) -> dict:
         seen: set[tuple[str, int, int]] = set()
         invalid = 0
 
-        for match in _CITATION.finditer(draft):
-            path, start_raw, end_raw = match.group(1), match.group(2), match.group(3)
-            start = int(start_raw)
-            end = int(end_raw) if end_raw else start
-            if end < start:
-                start, end = end, start
-
+        for path, start, end in parse_citation_markers(draft):
             resolved = path if path in known_paths else _resolve_path(path, known_paths)
             if resolved is None:
                 invalid += 1
@@ -127,7 +159,11 @@ def _score(
         base = min(1.0, base * (1.0 + 0.04 * min(len(citations), 5)))
 
     if invalid:
-        base *= max(0.4, 1.0 - 0.18 * invalid)
+        # Proportional to how much of the evidence failed, not to the raw count:
+        # a long answer with twenty good citations and two bad ones is not
+        # meaningfully less trustworthy than one with ten and none.
+        share_bad = invalid / max(1, invalid + len(citations))
+        base *= max(0.55, 1.0 - 0.6 * share_bad)
 
     if state.get("errors"):
         base *= 0.9

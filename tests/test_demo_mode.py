@@ -71,7 +71,9 @@ class TestBudget:
         assert not budget.check("b").allowed
 
         tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
-        monkeypatch.setattr(DemoBudget, "_today", staticmethod(lambda: tomorrow.strftime("%Y-%m-%d")))
+        monkeypatch.setattr(
+            DemoBudget, "_today", staticmethod(lambda: tomorrow.strftime("%Y-%m-%d"))
+        )
         assert budget.check("b").allowed
 
     def test_own_key_requests_are_counted_separately(self):
@@ -152,7 +154,10 @@ class TestDemoEndpoints:
 
     def test_streaming_index_build_is_refused(self, demo_client):
         http, _ = demo_client
-        assert http.get("/api/indexes/stream/build", params={"source": "psf/requests"}).status_code == 403
+        assert (
+            http.get("/api/indexes/stream/build", params={"source": "psf/requests"}).status_code
+            == 403
+        )
 
     def test_deleting_an_index_is_refused(self, demo_client):
         http, index = demo_client
@@ -185,7 +190,10 @@ class TestDemoEndpoints:
             http.post("/api/ask", json=body)
         assert http.post("/api/ask", json=body).status_code == 429
         # The same visitor, now paying their own way.
-        assert http.post("/api/ask", json=body, headers={"x-reposage-key": "visitor-key"}).status_code == 200
+        assert (
+            http.post("/api/ask", json=body, headers={"x-reposage-key": "visitor-key"}).status_code
+            == 200
+        )
 
     def test_a_refused_stream_still_opens_and_explains_itself(self, demo_client):
         """EventSource cannot read the body of a failed handshake, so a refusal

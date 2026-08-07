@@ -200,3 +200,65 @@ class TestConfidenceCalibration:
             {"critique": Critique(grounded=False, confidence=0.9)}, citations, 0, {"a.py"}
         )
         assert floating < grounded
+
+
+class TestCitationParsing:
+    """Models group references far more than the prompt asks them to, and the
+    grouped forms carry the most evidence. Matching only the simple form threw
+    away roughly half the citations on a real answer."""
+
+    def test_single_reference(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("see [src/a.py:12-48]") == [("src/a.py", 12, 48)]
+
+    def test_single_line_reference(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("[src/a.py:12]") == [("src/a.py", 12, 12)]
+
+    def test_two_files_in_one_bracket(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("[src/a.py:3-6, docs/b.md:148-151]") == [
+            ("src/a.py", 3, 6),
+            ("docs/b.md", 148, 151),
+        ]
+
+    def test_second_range_inherits_the_path(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("[src/a.py:16-18, 45-63]") == [
+            ("src/a.py", 16, 18),
+            ("src/a.py", 45, 63),
+        ]
+
+    def test_prose_in_brackets_is_not_a_citation(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("[see below, line 4]") == []
+
+    def test_a_bare_range_cannot_inherit_across_prose(self):
+        """Otherwise '[a.py:1-2] ... [note, 40-50]' would invent a citation."""
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        found = parse_citation_markers("[src/a.py:1-2] and later [note, 40-50]")
+        assert found == [("src/a.py", 1, 2)]
+
+    def test_reversed_ranges_are_normalised(self):
+        from reposage.agents.nodes.finalizer import parse_citation_markers
+
+        assert parse_citation_markers("[src/a.py:48-12]") == [("src/a.py", 12, 48)]
+
+    def test_invalid_citations_are_penalised_proportionally(self):
+        """Two bad citations among twenty good ones should not read as less
+        trustworthy than none among ten."""
+        from reposage.agents.nodes.finalizer import _score
+        from reposage.models import Citation, Critique
+
+        many = [Citation(path=f"f{i}.py", start_line=1, end_line=2) for i in range(20)]
+        few = [Citation(path=f"f{i}.py", start_line=1, end_line=2) for i in range(10)]
+        state = {"critique": Critique(confidence=0.9), "errors": []}
+        long_answer = _score(state, many, invalid=2, retrieved_paths={c.path for c in many})
+        short_answer = _score(state, few, invalid=0, retrieved_paths={c.path for c in few})
+        assert long_answer >= short_answer * 0.9

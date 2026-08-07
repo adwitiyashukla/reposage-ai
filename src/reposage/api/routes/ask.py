@@ -55,12 +55,16 @@ async def _resolve_agent(
     )
     decision = state.budget.check(visitor)
     if not decision.allowed:
-        return None, None, {
-            "detail": decision.reason,
-            "scope": decision.scope,
-            "needs_own_key": decision.needs_own_key,
-            "retry_after_seconds": decision.retry_after_seconds,
-        }
+        return (
+            None,
+            None,
+            {
+                "detail": decision.reason,
+                "scope": decision.scope,
+                "needs_own_key": decision.needs_own_key,
+                "retry_after_seconds": decision.retry_after_seconds,
+            },
+        )
     return await state.get_agent(repo), visitor, None
 
 

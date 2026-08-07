@@ -52,7 +52,9 @@ class BudgetDecision:
 class DemoBudget:
     """Global daily and per-visitor hourly limits for the shared key."""
 
-    def __init__(self, daily_limit: int = 200, visitor_limit: int = 5, window_seconds: int = 3600) -> None:
+    def __init__(
+        self, daily_limit: int = 200, visitor_limit: int = 5, window_seconds: int = 3600
+    ) -> None:
         self.daily_limit = daily_limit
         self.visitor_limit = visitor_limit
         self.window_seconds = window_seconds
