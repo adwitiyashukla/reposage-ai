@@ -303,7 +303,7 @@
       <div class="empty" id="empty-state">
         <h2>Understand any codebase in minutes</h2>
         <p>RepoSage indexes a repository with AST-aware chunking, retrieves over it with hybrid search, and answers with verified line-level citations.</p>
-        <div class="steps">
+        <div class="steps" id="empty-steps">
           <div class="step"><div class="step-num">1</div><div><strong>Index a repository.</strong> Paste <code>owner/repo</code> in the sidebar. A medium project takes a minute or two.</div></div>
           <div class="step"><div class="step-num">2</div><div><strong>Ask an architectural question.</strong> "How does authentication work?" beats "find the login function".</div></div>
           <div class="step"><div class="step-num">3</div><div><strong>Verify every claim.</strong> Click any citation to read the exact lines the answer was built from.</div></div>
@@ -429,6 +429,20 @@
     document.querySelector(".sidebar .section").style.display = "none";
     $("demo-banner").classList.add("on");
     renderQuota();
+
+    // The default onboarding walks through indexing a repository, which this
+    // demo deliberately disables. Leaving it would tell visitors to use a panel
+    // that is not there.
+    const steps = $("empty-steps");
+    if (steps) {
+      steps.innerHTML = [
+        ["Pick a question.", "Use one of the suggestions above, or ask your own. The codebase is already indexed."],
+        ["Watch it work.", "The panel on the right streams the agent's real steps: planning, retrieval, reranking, drafting and self-critique."],
+        ["Verify every claim.", "Click any citation in the answer to read the exact lines it was built from."],
+      ].map(([title, body], i) =>
+        '<div class="step"><div class="step-num">' + (i + 1) + "</div>"
+        + "<div><strong>" + title + "</strong> " + body + "</div></div>").join("");
+    }
   }
 
   function renderQuota() {
@@ -479,7 +493,8 @@
       '<button class="repo-item ' + (entry.id === state.repo ? "active" : "") + '" data-id="' + esc(entry.id) + '">'
       + '<div class="name">' + esc(entry.name) + "</div>"
       + '<div class="meta">' + entry.files.toLocaleString() + " files · "
-      + entry.chunks.toLocaleString() + " chunks · " + esc(entry.commit || "local") + "</div></button>").join("");
+      + entry.chunks.toLocaleString() + " chunks"
+      + (entry.commit ? " · " + esc(entry.commit) : "") + "</div></button>").join("");
     list.querySelectorAll(".repo-item").forEach((node) =>
       node.addEventListener("click", () => selectRepo(node.dataset.id)));
 
@@ -500,8 +515,12 @@
         ["lines", (meta.total_lines || 0).toLocaleString()],
         ["vectors", detail.vector_store.vectors.toLocaleString() + " × " + detail.vector_store.dim],
         ["vocabulary", detail.lexical.vocabulary.toLocaleString()],
-        ["commit", (meta.commit || "local").slice(0, 8)],
-      ].map(([k, v]) => '<div class="kv"><span>' + k + "</span><span>" + esc(v) + "</span></div>").join("");
+        ["languages", Object.keys(meta.languages || {}).slice(0, 3).join(", ")],
+        // An index built from a working tree has no commit; showing an empty or
+        // placeholder row reads as something broken rather than something absent.
+        ...(meta.commit ? [["commit", meta.commit.slice(0, 8)]] : []),
+      ].filter(([, v]) => v)
+       .map(([k, v]) => '<div class="kv"><span>' + k + "</span><span>" + esc(v) + "</span></div>").join("");
     } catch (err) { /* detail is optional */ }
   }
 

@@ -150,9 +150,7 @@ class NumpyVectorStore:
         else:
             # Older index written before the text format. Read it once so it can
             # be re-saved without pickle rather than forcing a full re-index.
-            store._ids = [
-                str(i) for i in np.load(legacy_path, allow_pickle=True).tolist()
-            ]
+            store._ids = [str(i) for i in np.load(legacy_path, allow_pickle=True).tolist()]
             log.info("vector_store.legacy_ids", path=str(legacy_path))
         store.dim = int(matrix.shape[1]) if matrix.size else None
         return store
