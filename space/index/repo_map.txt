@@ -1,0 +1,112 @@
+REPOSITORY MAP  |  81 files, 12,511 lines, 494 indexed chunks
+
+src/reposage/ingest/
+  chunker.py (564 lines)  -> _body_chars, _get_parser, treesitter_available, available_grammars, ChunkingStats, ASTChunker
+  walker.py (370 lines)  -> SourceFile, _looks_binary, _load_gitignore, _importance, walk_repository, _iter_files
+  languages.py (223 lines)  -> LanguageSpec, get_spec, detect_language, is_code_language, supported_extensions
+  pipeline.py (198 lines)  -> IngestionResult, IngestionPipeline, build_repo_map
+  repository.py (171 lines)  -> RepositoryError, RepositorySource, _run_git, normalise_source, _slug, resolve_repository
+  __init__.py (21 lines)
+
+tests/
+  test_llm_client.py (295 lines)  -> _gemini_response, TestGeminiProvider, TestJSONRecovery, _Shape, TestClientBehaviour, TestPricing
+  conftest.py (269 lines)  -> FakeProvider, settings, provider, client, sample_repo, sample_diff
+  test_cli_and_github.py (220 lines)  -> isolated_cwd, TestCLI, report, TestRendering, TestGitHubClient, TestActionsEnvironment
+  test_pipeline.py (163 lines)  -> TestWalker, TestIngestion, TestIndexPersistence, TestGraphRouting, TestAgentEndToEnd
+  test_api.py (131 lines)  -> app_client, TestSystemRoutes, TestIndexRoutes, TestAskRoutes, TestReviewRoute
+  test_retrieval.py (131 lines)  -> TestTokenizer, TestBM25, TestVectorStore, TestFusion
+  test_diff_and_review.py (109 lines)  -> TestDiffParsing, TestFindingValidation, test_severity_ordering_and_markdown
+  test_evals.py (104 lines)  -> TestRetrievalMetrics, TestAnswerMetrics, TestGoldenDataset
+  test_chunker.py (92 lines)  -> test_python_chunks_align_to_declarations, test_large_class_splits_into_members_with_a_skeleton, test_context_header_carries_path_and_imports, test_javascript_declarations_are_recognised, test_unknown_language_falls_back_without_raising, test_markdown_splits_on_headings
+
+src/reposage/index/
+  store.py (320 lines)  -> slugify, IndexStats, RepoIndex, __init__, save, get
+  retriever.py (296 lines)  -> RetrievalDebug, HybridRetriever, __init__, retrieve, _dense, _lexical
+  lexical.py (282 lines)  -> tokenize_code, BM25Index, __init__, build, search, save
+  vector_store.py (153 lines)  -> VectorStore, _l2_normalise, NumpyVectorStore
+  reranker.py (152 lines)  -> _Score, _ScoreList, LLMReranker
+  fusion.py (77 lines)  -> FusedResult, reciprocal_rank_fusion
+  __init__.py (21 lines)
+
+src/reposage/llm/
+  client.py (437 lines)  -> ModelTier, LLMClient, __init__, model_for, _record, _retrying
+  gemini.py (315 lines)  -> GeminiProvider, __init__, _build_body, generate, stream, embed
+  cache.py (127 lines)  -> _stable_hash, _MemoryCache, ResponseCache
+  base.py (98 lines)  -> LLMError, TransientLLMError, RateLimitError, ContentBlockedError, Message, LLMResponse
+  ratelimit.py (69 lines)  -> TokenBucket, ConcurrencyGuard
+  pricing.py (64 lines)  -> ModelPricing, lookup, estimate_cost
+  __init__.py (26 lines)
+
+evals/
+  harness.py (335 lines)  -> Variant, VariantResult, AnswerResult, EvalReport, EvalRunner, __init__
+  report.py (169 lines)  -> _bar, render_report, _pct, _num, _score, _pretty
+  run_evals.py (158 lines)  -> run, build_parser, main, run_cli
+  judges.py (137 lines)  -> JudgeVerdict, judge_answer
+  metrics.py (137 lines)  -> RetrievalMetrics, _normalise, _matches, evaluate_retrieval, aggregate_retrieval, citation_validity
+  dataset.py (79 lines)  -> EvalCase, load_dataset, save_dataset
+  __init__.py (30 lines)
+
+src/reposage/
+  cli.py (498 lines)  -> _bootstrap, _require_key, main, index_command, ask_command, list_command
+  models.py (312 lines)  -> ChunkKind, Severity, Chunk, ScoredChunk, Citation, Usage
+  config.py (135 lines)  -> Settings, get_settings, reset_settings_cache
+  logging_setup.py (57 lines)  -> configure_logging, get_logger
+  __init__.py (12 lines)
+
+(root)/
+  README.md (421 lines)
+  pyproject.toml (115 lines)
+  .gitignore (69 lines)
+  Dockerfile (66 lines)
+  Makefile (62 lines)
+  CONTRIBUTING.md (53 lines)
+  .env.example (48 lines)
+  docker-compose.yml (35 lines)
+  .dockerignore (22 lines)
+  .gitattributes (22 lines)
+  LICENSE (22 lines)
+
+src/reposage/review/
+  reviewer.py (295 lines)  -> _Finding, _FileReview, PullRequestReviewer, __init__, review, _review_file
+  github.py (250 lines)  -> GitHubError, PullRequestRef, GitHubClient, __init__, _request, get_pull_request
+  diff.py (245 lines)  -> LineType, DiffLine, DiffHunk, DiffFile, ParsedDiff, parse_unified_diff
+  __init__.py (16 lines)
+
+src/reposage/web/
+  index.html (706 lines)
+
+src/reposage/agents/
+  prompts.py (225 lines)  -> format_context, format_context_summary
+  engine.py (179 lines)  -> CodebaseAgent, __init__, ask, astream, batch, describe
+  graph.py (103 lines)  -> route_after_plan, route_after_critique, build_graph, describe_graph
+  state.py (95 lines)  -> AgentState, AgentDeps, initial_state
+  __init__.py (17 lines)
+
+src/reposage/agents/nodes/
+  finalizer.py (133 lines)  -> finalizer_node, _resolve_path, _symbol_at, _excerpt, _score
+  analyst.py (103 lines)  -> analyst_node, _answer_from_map
+  planner.py (89 lines)  -> planner_node
+  critic.py (71 lines)  -> critic_node
+  retriever.py (68 lines)  -> retriever_node
+  __init__.py (10 lines)
+
+docs/
+  ARCHITECTURE.md (279 lines)
+  EVALUATION.md (169 lines)
+
+src/reposage/api/routes/
+  indexes.py (144 lines)  -> list_all, describe, delete, build, build_streaming
+  ask.py (107 lines)  -> ask, ask_stream, read_source
+  health.py (58 lines)  -> health, ready, graph, stats
+  review.py (55 lines)  -> review
+  __init__.py (6 lines)
+
+src/reposage/api/
+  main.py (141 lines)  -> lifespan, create_app, _mount_web
+  deps.py (94 lines)  -> AppState, get_state, reset_state
+  schemas.py (92 lines)  -> IndexRequest, IndexSummary, IndexResponse, AskRequest, AskResponse, ReviewRequest
+  __init__.py (6 lines)
+
+src/reposage/observability/
+  tracing.py (250 lines)  -> EventType, TraceEvent, Span, Tracer, __init__, subscribe
+  __init__.py (13 lines)

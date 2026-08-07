@@ -211,6 +211,28 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
   .toast.err { border-color: var(--red); color: var(--red); }
 
+  .demo-banner {
+    display: none; align-items: flex-start; gap: 10px; padding: 11px 14px;
+    background: rgba(110,168,254,.09); border: 1px solid rgba(110,168,254,.28);
+    border-radius: 9px; margin-bottom: 14px; font-size: 12.5px; color: var(--text-dim);
+  }
+  .demo-banner.on { display: flex; }
+  .demo-banner b { color: var(--text); font-weight: 650; }
+  .demo-badge {
+    flex-shrink: 0; font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: .08em; color: var(--accent); border: 1px solid rgba(110,168,254,.4);
+    border-radius: 5px; padding: 2px 6px; margin-top: 1px;
+  }
+  .quota { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .keybox { display: none; margin-top: 10px; }
+  .keybox.on { display: block; }
+  .keybox .row { display: flex; gap: 8px; margin-top: 7px; }
+  .keybox input { flex: 1; font-family: var(--mono); font-size: 12px; }
+  .key-on {
+    display: none; align-items: center; gap: 6px; font-size: 11.5px; color: var(--green);
+  }
+  .key-on.on { display: inline-flex; }
+
   .progress { height: 3px; background: var(--bg-elev-2); border-radius: 3px; overflow: hidden; margin-top: 8px; }
   .progress i { display: block; height: 100%; width: 30%; background: var(--accent); animation: indet 1.1s ease-in-out infinite; }
   @keyframes indet { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
@@ -256,6 +278,21 @@
 
   <main class="main">
     <div class="composer">
+      <div class="demo-banner" id="demo-banner">
+        <span class="demo-badge">LIVE DEMO</span>
+        <div>
+          <div id="demo-text"></div>
+          <div class="keybox" id="keybox">
+            <div style="color:var(--text-dim)">Add your own free Gemini key to keep going. It stays in this browser tab and is never stored.</div>
+            <div class="row">
+              <input class="field" id="own-key" type="password" placeholder="AIza... or AQ..." spellcheck="false" autocomplete="off" />
+              <button class="btn sm" id="use-key">Use key</button>
+              <a class="btn ghost sm" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get one</a>
+            </div>
+          </div>
+          <span class="key-on" id="key-on">Using your own API key. <a href="#" id="clear-key">Clear</a></span>
+        </div>
+      </div>
       <div class="composer-row">
         <textarea class="field" id="question" rows="1" placeholder="Ask anything about this codebase. Enter to send, Shift+Enter for a new line." spellcheck="false"></textarea>
         <button class="btn" id="ask-btn">Ask</button>
@@ -306,7 +343,7 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const state = { repo: null, indexes: [], streaming: false, spans: new Map() };
+  const state = { repo: null, indexes: [], streaming: false, spans: new Map(), demo: null, ownKey: "" };
 
   const SUGGESTIONS = [
     "What does this project do and how is it structured?",
@@ -377,6 +414,39 @@
     }
     closeList();
     return out.join("\n").replace(/ BLOCK(\d+) /g, (_, i) => blocks[+i]);
+  }
+
+  /**
+   * The hosted demo shares one API key, so it meters usage and hides the
+   * operations that would spend the quota. Locally this is all inert.
+   */
+  async function loadDemo() {
+    let demo = { enabled: false };
+    try { demo = await api("/api/demo"); } catch (_) { /* older server */ }
+    state.demo = demo;
+    if (!demo.enabled) return;
+
+    document.querySelector(".sidebar .section").style.display = "none";
+    $("demo-banner").classList.add("on");
+    renderQuota();
+  }
+
+  function renderQuota() {
+    const demo = state.demo;
+    if (!demo || !demo.enabled) return;
+    const left = demo.budget ? demo.budget.remaining_today : 0;
+    const repo = demo.repo_url
+      ? `<a href="${demo.repo_url}" target="_blank" rel="noopener">its own source code</a>`
+      : "its own source code";
+    $("demo-text").innerHTML =
+      `<b>RepoSage is answering questions about ${repo}</b>, pre-indexed so it responds immediately. `
+      + `Indexing new repositories is disabled here to keep the shared API budget intact. `
+      + `<span class="quota">${left} question${left === 1 ? "" : "s"} left today</span>`;
+  }
+
+  function applyOwnKeyState() {
+    $("key-on").classList.toggle("on", Boolean(state.ownKey));
+    if (state.ownKey) $("keybox").classList.remove("on");
   }
 
   async function loadHealth() {
@@ -582,8 +652,9 @@
 
     const answerEl = block.querySelector(".answer");
     let buffer = "";
+    const keyParam = state.ownKey ? "&key=" + encodeURIComponent(state.ownKey) : "";
     const stream = new EventSource("/api/ask/stream?repo=" + encodeURIComponent(state.repo)
-      + "&q=" + encodeURIComponent(question));
+      + "&q=" + encodeURIComponent(question) + keyParam);
 
     const finish = () => {
       stream.close();
@@ -636,12 +707,34 @@
       toast(message, true);
       finish();
     });
+    stream.addEventListener("limit", (e) => {
+      handleRefusal(JSON.parse(e.data), answerEl);
+      finish();
+    });
     stream.onerror = () => {
       if (!state.streaming) return;
       const cursor = answerEl.querySelector(".cursor");
       if (cursor) cursor.remove();
       finish();
     };
+  }
+
+  /** Budget refusals are expected on the demo; guide rather than alarm. */
+  function handleRefusal(payload, answerEl) {
+    const detail = payload.detail || "The demo limit has been reached.";
+    answerEl.innerHTML = '<p style="color:var(--amber)">' + esc(detail) + "</p>";
+    if (payload.needs_own_key) {
+      $("keybox").classList.add("on");
+      $("own-key").focus();
+    }
+    refreshQuota();
+  }
+
+  async function refreshQuota() {
+    try {
+      state.demo = await api("/api/demo");
+      renderQuota();
+    } catch (_) { /* non-fatal */ }
   }
 
   async function openSource(path, line) {
@@ -682,6 +775,21 @@
     $("question").focus();
   });
 
+  $("use-key").addEventListener("click", () => {
+    const value = $("own-key").value.trim();
+    if (!value) { toast("Paste a key first.", true); return; }
+    state.ownKey = value;
+    $("own-key").value = "";
+    applyOwnKeyState();
+    toast("Using your API key for this session.");
+  });
+  $("clear-key").addEventListener("click", (e) => {
+    e.preventDefault();
+    state.ownKey = "";
+    applyOwnKeyState();
+    toast("Reverted to the shared demo budget.");
+  });
+
   $("ask-btn").addEventListener("click", ask);
   $("index-btn").addEventListener("click", buildIndex);
   $("source-input").addEventListener("keydown", (e) => { if (e.key === "Enter") buildIndex(); });
@@ -697,6 +805,7 @@
   $("overlay").addEventListener("click", (e) => { if (e.target === $("overlay")) $("overlay").classList.remove("open"); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("overlay").classList.remove("open"); });
 
+  loadDemo();
   loadHealth();
   loadIndexes();
 })();

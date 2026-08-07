@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "repo_id": "ai-proj@local",
+    "source": "https://github.com/adwitiyashukla/reposage-ai",
+    "name": "reposage-ai",
+    "commit": "",
+    "branch": "",
+    "indexed_at": "2026-08-05T02:20:37+00:00",
+    "num_files": 81,
+    "num_chunks": 494,
+    "languages": {
+      "python": 67,
+      "text": 5,
+      "markdown": 4,
+      "dockerfile": 1,
+      "make": 1,
+      "yaml": 1,
+      "toml": 1,
+      "html": 1
+    },
+    "embed_model": "gemini-embedding-001",
+    "total_lines": 12511
+  },
+  "stats": {
+    "chunks": 494,
+    "files": 81,
+    "vectors": 494,
+    "vocabulary": 4791,
+    "embed_seconds": 355.95,
+    "build_seconds": 356.22,
+    "ingestion": {
+      "files": 81,
+      "chunks": 494,
+      "ast_files": 67,
+      "fallback_files": 14,
+      "skeleton_chunks": 11,
+      "ast_coverage": 0.8272,
+      "treesitter_available": true,
+      "languages": {
+        "python": 67,
+        "text": 5,
+        "markdown": 4,
+        "dockerfile": 1,
+        "make": 1,
+        "yaml": 1,
+        "toml": 1,
+        "html": 1
+      },
+      "avg_chunk_lines": 27.9,
+      "chunk_kinds": {
+        "function": 217,
+        "class": 114,
+        "module": 99,
+        "documentation": 48,
+        "block": 16
+      }
+    }
+  },
+  "saved_at": "2026-08-05T02:26:33+00:00"
+}

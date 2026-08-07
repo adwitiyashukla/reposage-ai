@@ -59,6 +59,18 @@ class Settings(BaseSettings):
     chunk_max_lines: int = Field(default=120, alias="REPOSAGE_CHUNK_MAX_LINES")
     chunk_overlap_lines: int = Field(default=15, alias="REPOSAGE_CHUNK_OVERLAP_LINES")
 
+    # ------------------------------------------------------------ demo mode
+    # Set on the hosted demo only. Locks the app to answering questions against
+    # a pre-built index and meters the shared API key. See api/demo.py.
+    demo_mode: bool = Field(default=False, alias="REPOSAGE_DEMO_MODE")
+    demo_index: str = Field(default="", alias="REPOSAGE_DEMO_INDEX")
+    demo_daily_budget: int = Field(default=200, alias="REPOSAGE_DEMO_DAILY_BUDGET")
+    demo_visitor_budget: int = Field(default=5, alias="REPOSAGE_DEMO_VISITOR_BUDGET")
+    demo_repo_url: str = Field(
+        default="https://github.com/adwitiyashukla/reposage-ai",
+        alias="REPOSAGE_DEMO_REPO_URL",
+    )
+
     # ---------------------------------------------------------------- infra
     data_dir: Path = Field(default=Path(".reposage"), alias="REPOSAGE_DATA_DIR")
     enable_cache: bool = Field(default=True, alias="REPOSAGE_ENABLE_CACHE")

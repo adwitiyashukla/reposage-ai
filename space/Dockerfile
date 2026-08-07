@@ -1,0 +1,57 @@
+# Hugging Face Space image.
+#
+# RepoSage itself is installed from the GitHub repository rather than vendored,
+# so this Space stays three small files plus a pre-built index and can never
+# drift from the source it demonstrates.
+#
+# The index is baked into the image on purpose. Building it live would cost
+# roughly 500 embedding requests and seven minutes, which is both quota-hostile
+# and far longer than any visitor will wait.
+FROM python:3.12-slim
+
+# git is needed to install from the repository, and at runtime by the ingestion
+# layer even though the demo never clones anything.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Spaces run as UID 1000 and only $HOME is reliably writable.
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR $HOME/app
+
+ARG REPOSAGE_REF=main
+RUN pip install --no-cache-dir --user \
+    "reposage[treesitter] @ git+https://github.com/adwitiyashukla/reposage-ai.git@${REPOSAGE_REF}"
+
+# The pre-built index, published under the id the UI will show.
+COPY --chown=user index/ $HOME/data/indexes/reposage-ai/
+
+ENV REPOSAGE_DATA_DIR=$HOME/data \
+    REPOSAGE_LOG_JSON=true \
+    REPOSAGE_LOG_LEVEL=INFO \
+    REPOSAGE_ENABLE_CACHE=true
+
+# Demo mode: indexing endpoints are refused and the shared key is metered.
+ENV REPOSAGE_DEMO_MODE=true \
+    REPOSAGE_DEMO_INDEX=reposage-ai \
+    REPOSAGE_DEMO_DAILY_BUDGET=150 \
+    REPOSAGE_DEMO_VISITOR_BUDGET=4 \
+    REPOSAGE_DEMO_REPO_URL=https://github.com/adwitiyashukla/reposage-ai
+
+# One question is roughly six model calls; stay well inside the free tier.
+ENV REPOSAGE_MAX_CONCURRENCY=2 \
+    REPOSAGE_EMBED_CONCURRENCY=1 \
+    REPOSAGE_EMBED_RPM=60
+
+EXPOSE 7860
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:7860/api/health', timeout=4).status == 200 else 1)"
+
+CMD ["uvicorn", "reposage.api.main:app", "--host", "0.0.0.0", "--port", "7860"]

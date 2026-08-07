@@ -34,6 +34,12 @@ storage/
 cache/
 .llm_cache/
 
+# The Hugging Face Space ships a pre-built index so the demo answers
+# immediately instead of spending several minutes and hundreds of embedding
+# requests on every cold start. These are deliberate, versioned artefacts.
+!space/index/*.npz
+!space/index/*.npy
+
 # Testing & coverage
 .pytest_cache/
 .coverage
@@ -57,6 +63,9 @@ evals/.cache/
 # Node
 node_modules/
 npm-debug.log*
+
+# Local scratch
+.commitmsg
 
 # Local install logs
 install.log

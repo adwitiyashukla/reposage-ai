@@ -267,6 +267,24 @@ than being lost.
 
 ---
 
+## Hosted demo mode
+
+`REPOSAGE_DEMO_MODE` turns the same application into a public demo. It is not a
+separate build:
+
+* Index creation and deletion return 403, because indexing costs hundreds of
+  embedding requests and minutes of wall time. The demo ships a pre-built index.
+* Questions are metered by `api/demo.py`: a global daily budget bounds the worst
+  case, and a per-visitor hourly window stops one caller consuming it all.
+* Visitors can supply their own API key, which bypasses the budget entirely
+  because those requests cost the host nothing.
+* Read-only routes stay open. A refused answer whose citations could not be
+  opened would be unverifiable, which defeats the point of citing them.
+
+The refusal is delivered as an event on a successfully opened SSE stream rather
+than as an HTTP error, because `EventSource` cannot read the body of a failed
+handshake and the browser would otherwise show a bare connection failure.
+
 ## Extension points
 
 | To do this | Change this |

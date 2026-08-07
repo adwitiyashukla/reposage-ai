@@ -52,6 +52,27 @@ async def graph() -> dict:
     return {"format": "mermaid", "source": describe_graph()}
 
 
+@router.get("/demo", summary="Hosted demo status and remaining budget")
+async def demo() -> dict:
+    """What the UI needs to render itself correctly on the public demo.
+
+    Always present so the frontend can call it unconditionally; ``enabled`` is
+    false for a normal local install and the UI then behaves as the full app.
+    """
+    state = get_state()
+    settings = state.settings
+    if not settings.demo_mode:
+        return {"enabled": False}
+    return {
+        "enabled": True,
+        "index": settings.demo_index,
+        "repo_url": settings.demo_repo_url,
+        "indexing_disabled": True,
+        "budget": state.budget.status(),
+        "accepts_own_key": True,
+    }
+
+
 @router.get("/stats", summary="Cumulative token usage and cache statistics")
 async def stats() -> dict:
     return get_state().client.stats()

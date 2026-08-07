@@ -19,6 +19,19 @@ from reposage.observability import Tracer, use_tracer
 log = get_logger(__name__)
 router = APIRouter(prefix="/indexes", tags=["indexes"])
 
+_DEMO_LOCKED = (
+    "Indexing is disabled on the public demo. Indexing a repository costs "
+    "hundreds of embedding requests and several minutes, so the demo ships with "
+    "a pre-built index. Run RepoSage locally to index your own repositories: "
+    "https://github.com/adwitiyashukla/reposage-ai"
+)
+
+
+def _reject_if_demo() -> None:
+    """Write operations are unavailable on the hosted demo."""
+    if get_state().settings.demo_mode:
+        raise HTTPException(status_code=403, detail=_DEMO_LOCKED)
+
 
 @router.get("", summary="List every index on disk")
 async def list_all() -> dict:
@@ -37,6 +50,7 @@ async def describe(name: str) -> dict:
 
 @router.delete("/{name}", summary="Delete an index")
 async def delete(name: str) -> dict:
+    _reject_if_demo()
     state = get_state()
     removed = RepoIndex.delete(name, state.settings)
     state.invalidate(name)
@@ -51,6 +65,7 @@ async def build(request: IndexRequest) -> IndexResponse:
 
     Long-running. Prefer the streaming variant for anything a user is watching.
     """
+    _reject_if_demo()
     state = get_state()
     if not state.settings.has_api_key:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not configured")
@@ -93,6 +108,7 @@ async def build_streaming(
     source: str, branch: str | None = None, refresh: bool = False
 ) -> EventSourceResponse:
     """Same work as POST /indexes, with progress events as they happen."""
+    _reject_if_demo()
     state = get_state()
     if not state.settings.has_api_key:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not configured")

@@ -9,12 +9,15 @@ full load cost.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from typing import Any
 
 from reposage.agents.engine import CodebaseAgent
+from reposage.api.demo import DemoBudget
 from reposage.config import Settings, get_settings
 from reposage.index.store import RepoIndex, list_indexes
 from reposage.llm.client import LLMClient, get_client
+from reposage.llm.gemini import GeminiProvider
 from reposage.logging_setup import get_logger
 
 log = get_logger(__name__)
@@ -29,6 +32,13 @@ class AppState:
         self._indexes: dict[str, RepoIndex] = {}
         self._agents: dict[str, CodebaseAgent] = {}
         self._lock = asyncio.Lock()
+        self.budget = DemoBudget(
+            daily_limit=self.settings.demo_daily_budget,
+            visitor_limit=self.settings.demo_visitor_budget,
+        )
+        # Clients built from visitor-supplied keys, capped so a hostile
+        # caller cannot grow the pool without bound.
+        self._byo: dict[str, LLMClient] = {}
 
     @property
     def client(self) -> LLMClient:
@@ -58,6 +68,23 @@ class AppState:
                 self._agents[name] = CodebaseAgent(index, self.client, self.settings)
             return self._agents[name]
 
+    def client_for_key(self, api_key: str) -> LLMClient:
+        """A client bound to a visitor's own key.
+
+        Requests on a visitor's key cost the host nothing, so they bypass the
+        shared budget entirely. Clients are pooled by key digest to avoid
+        building a fresh HTTP connection pool per request.
+        """
+        digest = hashlib.sha256(api_key.encode()).hexdigest()[:16]
+        if digest not in self._byo:
+            if len(self._byo) >= 32:
+                self._byo.pop(next(iter(self._byo)))
+            self._byo[digest] = LLMClient(
+                provider=GeminiProvider(api_key, timeout=self.settings.request_timeout),
+                settings=self.settings,
+            )
+        return self._byo[digest]
+
     def register(self, index: RepoIndex) -> None:
         """Make a freshly built index available without a reload."""
         self._indexes[index.index_id] = index
@@ -71,6 +98,9 @@ class AppState:
         return list_indexes(self.settings)
 
     async def aclose(self) -> None:
+        for client in self._byo.values():
+            await client.aclose()
+        self._byo.clear()
         if self._client is not None:
             await self._client.aclose()
             self._client = None

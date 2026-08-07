@@ -8,6 +8,11 @@ Index a codebase with AST-aware chunking, retrieve over it with hybrid search,
 and answer architectural questions with verified line-level citations.
 Then let it review your pull requests.
 
+### [▶ Try the live demo](https://huggingface.co/spaces/HF_USERNAME/reposage)
+
+<sub>Running against its own source code, pre-indexed. No signup, no setup.</sub>
+
+[![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20demo-live%20on%20Spaces-yellow)](https://huggingface.co/spaces/HF_USERNAME/reposage)
 [![CI](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml)
 [![Evaluation report](https://img.shields.io/badge/evaluation-report-blue)](evals/REPORT.md)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
@@ -105,6 +110,30 @@ the index: markers that do not resolve are dropped and counted against the
 confidence score.
 
 ---
+
+## Live demo
+
+**[huggingface.co/spaces/HF_USERNAME/reposage](https://huggingface.co/spaces/HF_USERNAME/reposage)**
+
+The demo answers questions about RepoSage's own codebase, shipped pre-indexed so
+it responds immediately rather than making you wait several minutes for an index
+build. The right-hand panel streams the agent's actual reasoning: planning,
+retrieval, reranking, drafting, self-critique, then citation verification.
+
+Try asking:
+
+- *How does the critic decide whether to refine an answer?*
+- *Why is reciprocal rank fusion used instead of normalising and adding scores?*
+- *How are source files split into chunks, and why not fixed-size splitting?*
+
+Click any citation to read the exact lines the answer was built from.
+
+Indexing is disabled on the demo and the shared API key is metered per visitor
+and per day, because a public URL on a free-tier key is otherwise one crawler
+away from being permanently broken. When the daily budget is spent the demo does
+not break: it offers a box to paste your own free key, and those requests bypass
+the budget because they cost the host nothing. See
+[`api/demo.py`](src/reposage/api/demo.py).
 
 ## Quickstart
 
