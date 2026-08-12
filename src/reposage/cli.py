@@ -1,11 +1,3 @@
-"""Command-line interface.
-
-The CLI is the primary way to drive RepoSage in CI and during development, so it
-mirrors the HTTP API exactly: anything the API can do, ``reposage`` can do.
-Output is rendered with Rich when attached to a terminal and degrades to plain
-text when piped, which keeps it usable inside GitHub Actions logs.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -23,8 +15,6 @@ from reposage import __version__
 from reposage.config import get_settings
 from reposage.logging_setup import configure_console_encoding, configure_logging, get_logger
 
-# Windows consoles default to cp1252 when redirected; fix that before Rich
-# creates its Console, otherwise the first table with a box glyph crashes.
 configure_console_encoding()
 
 app = typer.Typer(
@@ -68,15 +58,13 @@ def main(
         raise typer.Exit()
 
 
-# --------------------------------------------------------------------- index
-@app.command("index")
+@app.command("index", help="Clone, chunk, embed and persist a repository.")
 def index_command(
     source: str = typer.Argument(..., help="GitHub URL, owner/repo, or a local path."),
     branch: str | None = typer.Option(None, "--branch", "-b", help="Branch to clone."),
     refresh: bool = typer.Option(False, "--refresh", help="Discard any cached clone."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Clone, chunk, embed and persist a repository."""
     _bootstrap(verbose)
     _require_key()
 
@@ -130,8 +118,7 @@ def index_command(
     asyncio.run(run())
 
 
-# ----------------------------------------------------------------------- ask
-@app.command("ask")
+@app.command("ask", help="Ask a question about an indexed repository.")
 def ask_command(
     question: str = typer.Argument(..., help="What you want to know."),
     repo: str = typer.Option(..., "--repo", "-r", help="Index id (see: reposage list)."),
@@ -139,7 +126,6 @@ def ask_command(
     show_trace: bool = typer.Option(False, "--trace", help="Print the agent's span timeline."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Ask a question about an indexed repository."""
     _bootstrap(verbose)
     _require_key()
 
@@ -208,10 +194,8 @@ def ask_command(
     asyncio.run(run())
 
 
-# ---------------------------------------------------------------------- list
-@app.command("list")
+@app.command("list", help="List every index available on disk.")
 def list_command() -> None:
-    """List every index available on disk."""
     _bootstrap()
     from reposage.index.store import list_indexes
 
@@ -237,9 +221,8 @@ def list_command() -> None:
     console.print(table)
 
 
-@app.command("delete")
+@app.command("delete", help="Delete an index from disk.")
 def delete_command(name: str = typer.Argument(..., help="Index id to delete.")) -> None:
-    """Delete an index from disk."""
     _bootstrap()
     from reposage.index.store import RepoIndex
 
@@ -250,8 +233,7 @@ def delete_command(name: str = typer.Argument(..., help="Index id to delete.")) 
         raise typer.Exit(code=1)
 
 
-# -------------------------------------------------------------------- review
-@app.command("review")
+@app.command("review", help="Review a diff or a GitHub pull request.")
 def review_command(
     diff_file: Path | None = typer.Option(
         None, "--diff", "-d", help="Path to a unified diff, or - for stdin."
@@ -270,10 +252,7 @@ def review_command(
     json_output: bool = typer.Option(False, "--json"),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Review a diff or a GitHub pull request."""
     _bootstrap(verbose)
-    # Validate arguments before building any client, so a usage mistake fails
-    # immediately instead of after the network stack is initialised.
     if not pr and not diff_file:
         console.print("[red]Provide either --diff or --pr.[/red]")
         raise typer.Exit(code=2)
@@ -376,14 +355,12 @@ def review_command(
     asyncio.run(run())
 
 
-# --------------------------------------------------------------------- serve
-@app.command("serve")
+@app.command("serve", help="Run the web UI and HTTP API.")
 def serve_command(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8000, "--port", "-p"),
     reload: bool = typer.Option(False, "--reload", help="Auto-reload on code changes."),
 ) -> None:
-    """Run the web UI and HTTP API."""
     _bootstrap()
     import uvicorn
 
@@ -404,10 +381,8 @@ def serve_command(
     )
 
 
-# -------------------------------------------------------------------- doctor
-@app.command("doctor")
+@app.command("doctor", help="Check configuration, optional grammars and model connectivity.")
 def doctor_command() -> None:
-    """Check configuration, optional grammars and model connectivity."""
     _bootstrap()
     from reposage.index.store import list_indexes
     from reposage.ingest.chunker import available_grammars, treesitter_available
@@ -467,8 +442,7 @@ def doctor_command() -> None:
         asyncio.run(probe())
 
 
-# ---------------------------------------------------------------------- eval
-@app.command("eval")
+@app.command("eval", help="Run the evaluation suite against an index.")
 def eval_command(
     repo: str = typer.Option(..., "--repo", "-r", help="Index id to evaluate against."),
     dataset: Path | None = typer.Option(
@@ -480,11 +454,10 @@ def eval_command(
     ),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Run the evaluation suite against an index."""
     _bootstrap(verbose)
     _require_key()
     try:
-        from evals.run_evals import run_cli  # type: ignore[import-not-found]
+        from evals.run_evals import run_cli
     except ImportError:
         console.print(
             "[yellow]The evaluation harness lives in the repository, not the installed package.[/yellow]\n"
@@ -497,5 +470,5 @@ def eval_command(
     run_cli(repo=repo, dataset=dataset, limit=limit, output=output)
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     app()

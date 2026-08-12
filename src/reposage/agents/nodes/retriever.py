@@ -1,5 +1,3 @@
-"""Retrieval node: run the hybrid engine and merge results into state."""
-
 from __future__ import annotations
 
 from reposage.agents.state import AgentDeps, AgentState
@@ -11,14 +9,6 @@ log = get_logger(__name__)
 
 
 async def retriever_node(state: AgentState, deps: AgentDeps) -> dict:
-    """Fetch context for the current query set.
-
-    On a refinement round this runs again with the critic's follow-up queries and
-    merges the new chunks with what we already had, keeping the better score for
-    any chunk both rounds found. Merging rather than replacing matters: the
-    refinement is meant to fill a gap, not to discard the context that was
-    already working.
-    """
     tracer = current_tracer()
     queries = state.get("active_queries") or [state["question"]]
     existing: list[ScoredChunk] = list(state.get("retrieved") or [])
@@ -47,8 +37,6 @@ async def retriever_node(state: AgentState, deps: AgentDeps) -> dict:
                 merged[key] = candidate
 
         combined = sorted(merged.values(), key=lambda c: -c.final_score)
-        # Keep the window bounded so repeated refinement cannot grow the prompt
-        # without limit.
         ceiling = deps.settings.top_k * 2 + 6
         combined = combined[:ceiling]
 

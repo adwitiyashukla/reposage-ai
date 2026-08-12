@@ -1,9 +1,3 @@
-"""Hosted-demo guardrails.
-
-The demo runs on the maintainer's key, so these limits are the only thing
-between a public URL and an exhausted quota. They are worth testing properly.
-"""
-
 from __future__ import annotations
 
 import time
@@ -48,8 +42,6 @@ class TestBudget:
         assert not decision.allowed and decision.scope == "global"
 
     def test_a_spent_daily_budget_is_fixable_with_an_own_key(self):
-        """The distinction matters: the UI only offers the key box when supplying
-        a key would actually help."""
         budget = DemoBudget(daily_limit=1, visitor_limit=100)
         budget.consume("a")
         assert budget.check("b").needs_own_key
@@ -104,8 +96,6 @@ class TestVisitorIdentity:
         assert visitor_id("1.2.3.4", None, "Mozilla") != visitor_id("5.6.7.8", None, "Mozilla")
 
     def test_prefers_the_forwarded_address_behind_a_proxy(self):
-        """Hosted platforms terminate TLS upstream, so the socket address is the
-        proxy and would collapse every visitor into one bucket."""
         direct = visitor_id("10.0.0.1", "203.0.113.9, 10.0.0.1", "UA")
         same_client = visitor_id("10.0.0.2", "203.0.113.9, 10.0.0.2", "UA")
         assert direct == same_client
@@ -117,7 +107,6 @@ class TestVisitorIdentity:
 
 @pytest.fixture
 async def demo_client(sample_repo, settings, client, monkeypatch):
-    """An app running in demo mode over a small pre-built index."""
     settings.demo_mode = True
     settings.demo_daily_budget = 3
     settings.demo_visitor_budget = 2
@@ -173,32 +162,23 @@ class TestDemoEndpoints:
         assert "retry-after" in refused.headers
 
     def test_reading_indexed_source_stays_available(self, demo_client):
-        """Citation viewing is read-only and must keep working when the budget
-        is spent, otherwise a refused answer becomes unverifiable."""
         http, index = demo_client
         path = next(p for p in index.paths() if p.endswith(".py"))
         assert http.get(f"/api/source/{index.index_id}", params={"path": path}).status_code == 200
 
     def test_own_key_bypasses_the_budget(self, demo_client, monkeypatch, provider):
-        """A visitor paying with their own key costs the host nothing, so the
-        shared budget must not apply to them."""
         http, index = demo_client
-        # Substitute the provider so no real credential or socket is needed.
         monkeypatch.setattr(deps, "GeminiProvider", lambda key, **kw: provider)
         body = {"repo": index.index_id, "question": "How does token validation work?"}
         for _ in range(2):
             http.post("/api/ask", json=body)
         assert http.post("/api/ask", json=body).status_code == 429
-        # The same visitor, now paying their own way.
         assert (
             http.post("/api/ask", json=body, headers={"x-reposage-key": "visitor-key"}).status_code
             == 200
         )
 
     def test_a_refused_stream_still_opens_and_explains_itself(self, demo_client):
-        """EventSource cannot read the body of a failed handshake, so a refusal
-        delivered as an HTTP error is invisible to the browser. It must arrive
-        as an event on a healthy stream instead."""
         http, index = demo_client
         params = {"repo": index.index_id, "q": "How does token validation work?"}
         for _ in range(2):

@@ -1,7 +1,5 @@
 name: RepoSage review
 
-# RepoSage reviews pull requests opened against this repository, which doubles
-# as a continuously running demonstration that the reviewer works on real code.
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -44,9 +42,6 @@ jobs:
             echo "::warning::GEMINI_API_KEY is not configured; skipping review."
           fi
 
-      # Indexing the base branch lets the reviewer judge each change against the
-      # surrounding code instead of the diff in isolation, which is what removes
-      # most false positives.
       - name: Index the repository for review context
         if: steps.key.outputs.present == 'true'
         env:

@@ -1,4 +1,3 @@
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,13 +10,11 @@ dist/
 .installed.cfg
 *.egg
 
-# Virtual environments
 .venv/
 venv/
 env/
 ENV/
 
-# Environment & secrets
 .env
 .env.*
 !.env.example
@@ -25,7 +22,6 @@ ENV/
 *.key
 secrets.json
 
-# RepoSage runtime data
 .reposage/
 data/
 storage/
@@ -34,13 +30,7 @@ storage/
 cache/
 .llm_cache/
 
-# The Hugging Face Space ships a pre-built index so the demo answers
-# immediately instead of spending several minutes and hundreds of embedding
-# requests on every cold start. These are deliberate, versioned artefacts.
-!space/index/*.npz
-!space/index/*.npy
 
-# Testing & coverage
 .pytest_cache/
 .coverage
 coverage.xml
@@ -49,29 +39,27 @@ htmlcov/
 .ruff_cache/
 .tox/
 
-# Eval artifacts (reports are committed, raw runs are not)
 evals/runs/
 evals/.cache/
 
-# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
 
-# Node
 node_modules/
 npm-debug.log*
 
-# Local scratch
 .commitmsg
 
-# Local install logs
 install.log
 install.err
 
-# OS / OneDrive
 Thumbs.db
 desktop.ini
 .coverage.*
+
+space/index/
+evals/report.json
+evals/runs/

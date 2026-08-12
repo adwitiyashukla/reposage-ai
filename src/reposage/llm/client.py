@@ -1,20 +1,3 @@
-"""The single entry point every other module uses to talk to a model.
-
-Responsibilities layered on top of a raw provider:
-
-* **Tiering** - callers ask for ``FAST`` or ``DEEP`` rather than naming models,
-  so the whole system can be re-pointed from one config file.
-* **Caching** - identical requests are served from disk, which makes evaluation
-  reruns and development loops effectively free.
-* **Retries** - transient failures and 429s are retried with exponential
-  backoff and full jitter; non-retryable errors fail fast.
-* **Rate shaping** - a token bucket keeps us inside free-tier quotas.
-* **Accounting** - every call records tokens and estimated cost on the active
-  tracer, so any run can answer "what did that cost?".
-* **Structured output** - JSON responses are parsed into Pydantic models with a
-  self-repair round-trip when the model returns malformed JSON.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -50,15 +33,11 @@ T = TypeVar("T", bound=BaseModel)
 
 
 class ModelTier(str, Enum):
-    """Which quality/latency point a call needs."""
-
     FAST = "fast"
     DEEP = "deep"
 
 
 class LLMClient:
-    """Resilient, accounted, cached access to a language model."""
-
     def __init__(
         self,
         provider: LLMProvider | None = None,
@@ -74,16 +53,12 @@ class LLMClient:
             ttl_seconds=self.settings.cache_ttl_seconds,
             enabled=self.settings.enable_cache,
         )
-        # Generation and embedding are metered under separate quotas, so they get
-        # separate buckets. Sharing one would throttle generation to the much
-        # tighter embedding limit for no reason.
         self._bucket = TokenBucket(self.settings.max_rpm)
         self._embed_bucket = TokenBucket(self.settings.embed_rpm)
         self._guard = ConcurrencyGuard(self.settings.max_concurrency)
         self._embed_guard = ConcurrencyGuard(self.settings.embed_concurrency)
         self.usage = Usage()
 
-    # ----------------------------------------------------------------- utils
     def model_for(self, tier: ModelTier) -> str:
         return self.settings.deep_model if tier is ModelTier.DEEP else self.settings.fast_model
 
@@ -113,11 +88,6 @@ class LLMClient:
         _cost: int = 1,
         **kwargs: Any,
     ) -> Any:
-        """Exponential backoff with full jitter over retryable provider errors.
-
-        ``_cost`` is the number of quota units the call consumes, which is not
-        always one: embedding a batch of 32 spends 32 units.
-        """
         attempts = max(1, self.settings.max_retries)
         bucket = _bucket or self._bucket
         guard = _guard or self._guard
@@ -129,9 +99,6 @@ class LLMClient:
                     return await func(*args, **kwargs)
             except RateLimitError as exc:
                 last = exc
-                # Provider quotas are per-minute windows, so a retry schedule that
-                # tops out below 60s can exhaust itself without the window ever
-                # resetting. 4/8/16/32/64s spans a full window.
                 last_resort = min(90.0, 4.0 * (2**attempt))
                 delay = (exc.retry_after or last_resort) * (0.5 + random.random() * 0.5)
                 log.warning(
@@ -154,7 +121,6 @@ class LLMClient:
                 await asyncio.sleep(delay)
         raise LLMError(f"{operation} failed after {attempts} attempts: {last}") from last
 
-    # ------------------------------------------------------------- generation
     async def complete(
         self,
         prompt: str,
@@ -228,12 +194,6 @@ class LLMClient:
         max_output_tokens: int = 4096,
         repair_attempts: int = 1,
     ) -> T:
-        """Generate and validate JSON against ``schema``.
-
-        On a validation failure the model is shown its own output and the
-        validation error and asked to correct it. That single repair round-trip
-        removes almost all structured-output failures in practice.
-        """
         instruction = (
             f"{prompt}\n\n"
             "Respond with a single JSON object and nothing else. No prose, no markdown fences.\n"
@@ -270,7 +230,7 @@ class LLMClient:
                     max_output_tokens=max_output_tokens,
                 )
                 text = repair.text
-        raise LLMError("unreachable")  # pragma: no cover
+        raise LLMError("unreachable")
 
     async def stream(
         self,
@@ -281,7 +241,6 @@ class LLMClient:
         temperature: float = 0.2,
         max_output_tokens: int = 4096,
     ) -> AsyncIterator[str]:
-        """Yield generated text incrementally. Streamed calls bypass the cache."""
         model = self.model_for(tier)
         tracer = current_tracer()
         emitted = 0
@@ -309,7 +268,6 @@ class LLMClient:
             )
         )
 
-    # ------------------------------------------------------------- embeddings
     async def embed(
         self,
         texts: list[str],
@@ -317,11 +275,6 @@ class LLMClient:
         task_type: str = "RETRIEVAL_DOCUMENT",
         dimensions: int | None = None,
     ) -> list[list[float]]:
-        """Embed ``texts``, serving unchanged content from cache.
-
-        Only cache misses are sent to the provider, so re-indexing a repository
-        after a small change costs close to nothing.
-        """
         if not texts:
             return []
         model = self.settings.embed_model
@@ -386,7 +339,6 @@ class LLMClient:
         vectors = await self.embed([text], task_type="RETRIEVAL_QUERY")
         return vectors[0] if vectors else []
 
-    # ---------------------------------------------------------------- health
     async def healthcheck(self) -> dict[str, Any]:
         started = time.perf_counter()
         try:
@@ -416,7 +368,6 @@ class LLMClient:
 
 
 def _compact_schema(schema: type[BaseModel]) -> str:
-    """A trimmed JSON schema. Full schemas waste tokens on metadata."""
     import orjson
 
     raw = schema.model_json_schema()
@@ -429,7 +380,6 @@ _CLIENT: LLMClient | None = None
 
 
 def get_client(settings: Settings | None = None) -> LLMClient:
-    """Process-wide client so the HTTP pool and caches are shared."""
     global _CLIENT
     if _CLIENT is None:
         _CLIENT = LLMClient(settings=settings)

@@ -1,9 +1,3 @@
-"""Request and response models for the HTTP API.
-
-Kept separate from the domain models in :mod:`reposage.models` so that the wire
-contract can evolve without dragging internal representations along with it.
-"""
-
 from __future__ import annotations
 
 from typing import Any

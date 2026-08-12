@@ -1,5 +1,3 @@
-"""Question answering, batch and streaming."""
-
 from __future__ import annotations
 
 import orjson
@@ -16,21 +14,12 @@ from reposage.observability import Tracer, use_tracer
 log = get_logger(__name__)
 router = APIRouter(tags=["ask"])
 
-# Visitors may supply their own key to bypass the shared demo budget.
 API_KEY_HEADER = "x-reposage-key"
 
 
 async def _resolve_agent(
     request: Request, repo: str, own_key: str | None
 ) -> tuple[CodebaseAgent | None, str | None, dict | None]:
-    """Pick the agent for this request and evaluate the demo budget.
-
-    Returns ``(agent, visitor, refusal)``. The refusal is returned rather than
-    raised because the two callers need it in different shapes: the JSON
-    endpoint turns it into a 429, while the SSE endpoint must open the stream
-    successfully and deliver it as an event. A stream that fails its handshake
-    gives the browser no way to read why.
-    """
     state = get_state()
     try:
         index = await state.get_index(repo)
@@ -118,21 +107,12 @@ async def ask_stream(
     q: str = Query(min_length=3, description="The question"),
     key: str | None = Query(default=None, description="Optional caller-supplied API key"),
 ) -> EventSourceResponse:
-    """Stream the agent's reasoning and answer tokens as they are produced.
-
-    Uses GET because the browser ``EventSource`` API cannot issue a POST, which
-    is also why an optional key arrives as a query parameter here rather than a
-    header. That is acceptable only because the demo is the sole caller that
-    uses it and the value is the caller's own credential.
-    """
     state = get_state()
     agent, visitor, refusal = await _resolve_agent(request, repo, key)
     if visitor:
         state.budget.consume(visitor)
 
     async def publisher():
-        # A refused request still opens a healthy stream and explains itself, so
-        # the browser can render guidance instead of a bare connection failure.
         if refusal is not None:
             yield {"event": "limit", "data": orjson.dumps(refusal).decode()}
             return
@@ -147,12 +127,6 @@ async def ask_stream(
 
 @router.get("/source/{repo}", summary="Read an indexed file for citation display")
 async def read_source(repo: str, path: str = Query(description="Repository-relative path")) -> dict:
-    """Return the reconstructed content of an indexed file.
-
-    Serving from the index rather than the filesystem keeps the endpoint safe by
-    construction: only paths that were indexed can be read, so no traversal is
-    possible regardless of what the caller sends.
-    """
     state = get_state()
     try:
         index = await state.get_index(repo)

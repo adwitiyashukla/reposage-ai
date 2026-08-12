@@ -1,12 +1,3 @@
-"""End-to-end ingestion: source in, chunks and a repository map out.
-
-The repository map deserves special mention. Before any retrieval happens, the
-planner agent is shown a compressed tree of the codebase annotated with the
-top-level symbols in each file. That single artefact is what lets the planner
-turn "how does authentication work?" into concrete, path-scoped search queries
-instead of guessing. It costs one pass over data we already parsed.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -29,8 +20,6 @@ log = get_logger(__name__)
 
 @dataclass(slots=True)
 class IngestionResult:
-    """Everything ingestion produces, ready for indexing."""
-
     repo: RepositorySource
     metadata: RepoMetadata
     chunks: list[Chunk]
@@ -43,8 +32,6 @@ class IngestionResult:
 
 
 class IngestionPipeline:
-    """Coordinates acquisition, traversal and chunking."""
-
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
@@ -131,7 +118,7 @@ class IngestionPipeline:
                 chunks.extend(
                     chunker.chunk(source_file.rel_path, source_file.content, source_file.spec)
                 )
-            except Exception as exc:  # pragma: no cover - defensive
+            except Exception as exc:
                 log.warning("chunk.failed", path=source_file.rel_path, error=str(exc)[:160])
         return chunks, chunker.stats.as_dict()
 
@@ -141,11 +128,6 @@ _SYMBOLS_PER_FILE = 6
 
 
 def build_repo_map(files: list[SourceFile], chunks: list[Chunk]) -> str:
-    """A compressed, symbol-annotated view of the repository.
-
-    Kept under a few thousand tokens so it can be included in every planning
-    prompt without dominating the context window.
-    """
     symbols: dict[str, list[str]] = defaultdict(list)
     for chunk in chunks:
         if chunk.symbol and chunk.kind in (

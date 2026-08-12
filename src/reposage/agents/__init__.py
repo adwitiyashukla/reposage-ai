@@ -1,5 +1,3 @@
-"""Multi-agent orchestration over an indexed repository."""
-
 from reposage.agents.engine import CodebaseAgent
 from reposage.agents.graph import build_graph, describe_graph
 from reposage.agents.prompts import PROMPT_VERSION

@@ -1,18 +1,3 @@
-"""Gemini provider implemented directly on the REST API.
-
-Talking to the HTTP surface rather than a vendor SDK is a deliberate choice:
-
-* one dependency (``httpx``) instead of a transitive SDK tree,
-* full control over timeouts, connection pooling, retry classification and
-  server-sent-event parsing,
-* no breakage when an SDK makes a major-version change,
-* the same ``httpx`` client is reused for every call, so TLS handshakes are
-  amortised across a whole indexing run.
-
-The trade-off is that we own request/response shaping. That is ~150 lines and
-is covered by unit tests with a mocked transport.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -37,9 +22,6 @@ log = get_logger(__name__)
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta"
 
-# Gemini's default safety filters are tuned for consumer chat and fire on
-# ordinary security-related code discussion ("injection", "exploit", "payload").
-# For a code-review tool that is pure false-positive noise, so we opt out.
 _SAFETY_OFF = [
     {"category": c, "threshold": "BLOCK_NONE"}
     for c in (
@@ -52,8 +34,6 @@ _SAFETY_OFF = [
 
 
 class GeminiProvider:
-    """Async Gemini client covering generation, streaming and embeddings."""
-
     name = "gemini"
 
     def __init__(
@@ -82,7 +62,6 @@ class GeminiProvider:
             transport=transport,
         )
 
-    # ------------------------------------------------------------- internals
     @staticmethod
     def _model_path(model: str) -> str:
         return model if model.startswith("models/") else f"models/{model}"
@@ -156,7 +135,6 @@ class GeminiProvider:
             raw=payload,
         )
 
-    # -------------------------------------------------------------- generate
     async def generate(
         self,
         prompt: str,
@@ -180,7 +158,6 @@ class GeminiProvider:
         self._raise_for_status(response, text)
         return self._extract(orjson.loads(text), model)
 
-    # ---------------------------------------------------------------- stream
     async def stream(
         self,
         prompt: str,
@@ -206,7 +183,7 @@ class GeminiProvider:
                         continue
                     try:
                         chunk = orjson.loads(payload)
-                    except orjson.JSONDecodeError:  # pragma: no cover - defensive
+                    except orjson.JSONDecodeError:
                         continue
                     for candidate in chunk.get("candidates", []):
                         for part in (candidate.get("content") or {}).get("parts", []):
@@ -215,7 +192,6 @@ class GeminiProvider:
         except httpx.HTTPError as exc:
             raise TransientLLMError(f"Gemini stream failed: {exc}") from exc
 
-    # ------------------------------------------------------------- embeddings
     async def embed(
         self,
         texts: list[str],
@@ -257,12 +233,6 @@ _JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
 
 def extract_json(text: str) -> Any:
-    """Best-effort recovery of a JSON value from a model response.
-
-    Models wrap JSON in prose or fences even when asked not to. Rather than
-    failing the run we escalate through progressively more forgiving strategies:
-    direct parse, fenced block, then balanced-brace scanning.
-    """
     text = (text or "").strip()
     if not text:
         raise ValueError("empty response")
@@ -310,5 +280,5 @@ def extract_json(text: str) -> Any:
     raise ValueError(f"could not parse JSON from response: {text[:200]!r}")
 
 
-async def _sleep(seconds: float) -> None:  # pragma: no cover - trivial
+async def _sleep(seconds: float) -> None:
     await asyncio.sleep(seconds)

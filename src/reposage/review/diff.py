@@ -1,17 +1,3 @@
-"""Unified diff parsing.
-
-Written in-tree rather than pulled from a library for one specific reason: a
-review comment is only useful if it lands on the right line, and that requires
-an exact mapping from each added line to its position in the *new* file and to
-its offset within the hunk. GitHub's review API needs both, and owning the
-parser means the mapping is explicit and testable rather than inferred from
-another library's data model.
-
-The parser is deliberately tolerant. Diffs arrive from ``git diff``, from the
-GitHub API and from CI logs, and a strict parser that rejects an unexpected
-header line would take the whole review down.
-"""
-
 from __future__ import annotations
 
 import re
@@ -30,13 +16,10 @@ class LineType(str, Enum):
 
 @dataclass(slots=True)
 class DiffLine:
-    """One line of a hunk, addressed in both the old and the new file."""
-
     type: LineType
     content: str
     old_line: int | None
     new_line: int | None
-    # Offset within the hunk body, which is what GitHub calls "position".
     position: int
 
     @property
@@ -65,8 +48,6 @@ class DiffHunk:
 
 @dataclass(slots=True)
 class DiffFile:
-    """All changes to a single path."""
-
     path: str
     old_path: str | None = None
     is_new: bool = False
@@ -93,11 +74,9 @@ class DiffFile:
 
     @property
     def changed_line_numbers(self) -> set[int]:
-        """New-file line numbers a review comment is allowed to target."""
         return {ln.new_line for ln in self.added_lines if ln.new_line is not None}
 
     def position_for_line(self, new_line: int) -> int | None:
-        """Map a new-file line number to its diff position, or ``None``."""
         for hunk in self.hunks:
             for line in hunk.lines:
                 if line.new_line == new_line:
@@ -111,7 +90,6 @@ class DiffFile:
         return out if len(out) <= max_chars else out[:max_chars] + "\n... (diff truncated)"
 
     def search_terms(self) -> list[str]:
-        """Identifiers touched by this change, used to retrieve related code."""
         terms: list[str] = []
         pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
         for line in self.added_lines + self.removed_lines:
@@ -137,7 +115,6 @@ class ParsedDiff:
 
     @property
     def reviewable(self) -> list[DiffFile]:
-        """Files worth spending model calls on."""
         return [f for f in self.files if not f.is_deleted and not f.is_binary and f.hunks]
 
     def stats(self) -> dict[str, int]:
@@ -153,7 +130,6 @@ class ParsedDiff:
 
 
 def parse_unified_diff(text: str) -> ParsedDiff:
-    """Parse a unified diff into per-file, per-hunk, line-addressed structures."""
     parsed = ParsedDiff()
     current: DiffFile | None = None
     hunk: DiffHunk | None = None
@@ -168,7 +144,6 @@ def parse_unified_diff(text: str) -> ParsedDiff:
             continue
 
         if current is None:
-            # Diffs without `diff --git` headers still start at `---`/`+++`.
             if raw.startswith("--- "):
                 current = DiffFile(path="unknown", old_path=_strip_prefix(raw[4:]))
                 parsed.files.append(current)
@@ -216,7 +191,7 @@ def parse_unified_diff(text: str) -> ParsedDiff:
         if hunk is None:
             continue
 
-        if raw.startswith("\\"):  # "\ No newline at end of file"
+        if raw.startswith("\\"):
             continue
 
         position += 1
@@ -236,7 +211,6 @@ def parse_unified_diff(text: str) -> ParsedDiff:
 
 
 def _strip_prefix(path: str) -> str:
-    """Remove git's ``a/`` or ``b/`` prefix and any trailing tab metadata."""
     path = path.split("\t")[0].strip()
     for prefix in ("a/", "b/"):
         if path.startswith(prefix):

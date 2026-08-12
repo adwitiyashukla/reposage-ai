@@ -1,12 +1,3 @@
-"""Repository acquisition.
-
-Accepts a local path, a full Git URL, or GitHub shorthand (``owner/repo``) and
-normalises all three into a checked-out working tree plus the commit SHA that
-identifies it. Clones are shallow and single-branch because we only ever read
-the current tree, and cached across runs so re-indexing is a fetch rather than a
-full download.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -25,13 +16,11 @@ _SLUG_SAFE = re.compile(r"[^a-zA-Z0-9._-]+")
 
 
 class RepositoryError(RuntimeError):
-    """Raised when a repository cannot be acquired."""
+    pass
 
 
 @dataclass(slots=True)
 class RepositorySource:
-    """A resolved, on-disk repository ready to be walked."""
-
     repo_id: str
     name: str
     origin: str
@@ -46,7 +35,6 @@ class RepositorySource:
 
     @property
     def web_url(self) -> str | None:
-        """Best-effort browse URL so citations can deep-link to GitHub."""
         origin = self.origin
         if origin.startswith("git@"):
             origin = origin.replace(":", "/").replace("git@", "https://")
@@ -58,7 +46,6 @@ class RepositorySource:
 
 
 async def _run_git(*args: str, cwd: Path | None = None, timeout: float = 300.0) -> str:
-    """Run git and return stdout, raising a readable error on failure."""
     if shutil.which("git") is None:
         raise RepositoryError("git is not installed or not on PATH.")
     process = await asyncio.create_subprocess_exec(
@@ -80,7 +67,6 @@ async def _run_git(*args: str, cwd: Path | None = None, timeout: float = 300.0) 
 
 
 def normalise_source(source: str) -> tuple[str, str]:
-    """Return ``(git_url, display_name)`` for any accepted source form."""
     source = source.strip().rstrip("/")
     if _SHORTHAND.match(source):
         return f"https://github.com/{source}.git", source
@@ -104,7 +90,6 @@ async def resolve_repository(
     refresh: bool = False,
     depth: int = 1,
 ) -> RepositorySource:
-    """Materialise ``source`` on disk and return its identity."""
     candidate = Path(source).expanduser()
     if candidate.exists() and candidate.is_dir():
         return await _resolve_local(candidate)
@@ -163,7 +148,6 @@ async def _resolve_local(path: Path) -> RepositorySource:
 
 
 async def _safe_git(*args: str, cwd: Path) -> str:
-    """Git call that returns an empty string instead of raising."""
     try:
         return await _run_git(*args, cwd=cwd, timeout=30.0)
     except RepositoryError:

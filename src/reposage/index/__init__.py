@@ -1,5 +1,3 @@
-"""Hybrid retrieval: dense vectors, lexical BM25, fusion and reranking."""
-
 from reposage.index.fusion import reciprocal_rank_fusion
 from reposage.index.lexical import BM25Index, tokenize_code
 from reposage.index.reranker import LLMReranker

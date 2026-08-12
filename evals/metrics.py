@@ -1,13 +1,3 @@
-"""Deterministic retrieval metrics.
-
-These require no model calls, so they run on every commit in CI and give a fast,
-free signal about whether a change to chunking, fusion or reranking helped or
-hurt. Answer-quality judging is comparatively slow and expensive, so it runs on
-demand rather than on every push.
-
-All metrics are computed at *file* granularity against the golden set.
-"""
-
 from __future__ import annotations
 
 import math
@@ -18,8 +8,6 @@ from typing import Any
 
 @dataclass(slots=True)
 class RetrievalMetrics:
-    """Metrics for a single query."""
-
     case_id: str = ""
     recall_at_k: float = 0.0
     precision_at_k: float = 0.0
@@ -52,7 +40,6 @@ def _normalise(path: str) -> str:
 
 
 def _matches(retrieved: str, expected: str) -> bool:
-    """Suffix matching, so a dataset can name ``auth/jwt.py`` for ``src/auth/jwt.py``."""
     r, e = _normalise(retrieved), _normalise(expected)
     return r == e or r.endswith("/" + e) or e.endswith("/" + r)
 
@@ -60,11 +47,9 @@ def _matches(retrieved: str, expected: str) -> bool:
 def evaluate_retrieval(
     case_id: str, retrieved_paths: list[str], expected_paths: list[str], k: int | None = None
 ) -> RetrievalMetrics:
-    """Score one ranked list of retrieved file paths against ground truth."""
     if not expected_paths:
         return RetrievalMetrics(case_id=case_id, retrieved=len(retrieved_paths))
 
-    # De-duplicate while preserving rank order.
     ranked: list[str] = []
     for path in retrieved_paths:
         if path not in ranked:
@@ -100,7 +85,6 @@ def evaluate_retrieval(
 
 
 def aggregate_retrieval(results: list[RetrievalMetrics]) -> dict[str, float]:
-    """Corpus-level means. ``hit_rate`` is the headline number."""
     if not results:
         return {}
     return {
@@ -117,7 +101,6 @@ def aggregate_retrieval(results: list[RetrievalMetrics]) -> dict[str, float]:
 
 
 def citation_validity(citations: list[Any], indexed_paths: set[str]) -> dict[str, float]:
-    """What fraction of an answer's citations point at real indexed files."""
     if not citations:
         return {"citations": 0, "valid_rate": 0.0}
     valid = sum(1 for c in citations if getattr(c, "path", "") in indexed_paths)
@@ -125,11 +108,6 @@ def citation_validity(citations: list[Any], indexed_paths: set[str]) -> dict[str
 
 
 def keyword_coverage(answer: str, required: list[str]) -> float:
-    """Fraction of required facts that appear in the answer.
-
-    A blunt instrument, but a useful guardrail: it catches an answer that is
-    fluent and well-cited yet silently omits the thing that was asked about.
-    """
     if not required:
         return 1.0
     lowered = answer.lower()

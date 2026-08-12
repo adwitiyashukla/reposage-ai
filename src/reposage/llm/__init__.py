@@ -1,5 +1,3 @@
-"""LLM access layer: providers, caching, retries and cost accounting."""
-
 from reposage.llm.base import (
     LLMError,
     LLMProvider,

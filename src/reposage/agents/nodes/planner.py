@@ -1,5 +1,3 @@
-"""Planning node: question plus repository map, out comes a retrieval plan."""
-
 from __future__ import annotations
 
 from reposage.agents.prompts import PLANNER_SYSTEM, PLANNER_USER
@@ -15,16 +13,6 @@ _MAP_BUDGET = 14_000
 
 
 async def planner_node(state: AgentState, deps: AgentDeps) -> dict:
-    """Decompose the question into targeted search queries.
-
-    Planning is the cheapest place to add retrieval quality: one fast-model call
-    turns a vague question into several well-formed queries covering both
-    identifier-style and descriptive vocabulary, which is what the hybrid
-    retriever needs to do its job.
-
-    A planning failure is never fatal. We fall back to using the raw question as
-    a single query, which is exactly what a naive RAG system would have done.
-    """
     tracer = current_tracer()
     question = state["question"]
 
@@ -64,8 +52,6 @@ async def planner_node(state: AgentState, deps: AgentDeps) -> dict:
             }
 
         queries = plan.all_queries or [question]
-        # Keyword hints are appended as their own query so exact identifiers get
-        # a dedicated BM25 shot rather than being diluted inside a long phrase.
         if plan.keyword_hints:
             queries.append(" ".join(plan.keyword_hints[:6]))
 

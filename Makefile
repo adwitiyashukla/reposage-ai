@@ -1,4 +1,3 @@
-# RepoSage developer tasks. `make help` lists everything.
 .DEFAULT_GOAL := help
 .PHONY: help install dev test test-cov lint fmt typecheck check run index ask eval docker docker-run clean
 

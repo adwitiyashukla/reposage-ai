@@ -1,14 +1,3 @@
-"""Disk-backed caches for generations and embeddings.
-
-Two things dominate the cost and latency of an indexing-plus-QA system:
-re-embedding unchanged code, and re-asking the model identical questions during
-development and evaluation. Both are perfectly cacheable because both are pure
-functions of their inputs.
-
-Cache keys hash every parameter that can change the output, so a temperature or
-prompt tweak transparently produces a miss rather than a stale hit.
-"""
-
 from __future__ import annotations
 
 import contextlib
@@ -22,12 +11,12 @@ from reposage.logging_setup import get_logger
 
 log = get_logger(__name__)
 
-try:  # pragma: no cover - exercised implicitly
+try:
     from diskcache import Cache as _DiskCache
 
     _HAS_DISKCACHE = True
-except ImportError:  # pragma: no cover
-    _DiskCache = None  # type: ignore[assignment]
+except ImportError:
+    _DiskCache = None
     _HAS_DISKCACHE = False
 
 
@@ -37,8 +26,6 @@ def _stable_hash(payload: dict[str, Any]) -> str:
 
 
 class _MemoryCache:
-    """Fallback used when diskcache is unavailable or the disk is read-only."""
-
     def __init__(self, max_items: int = 4096) -> None:
         self._data: dict[str, Any] = {}
         self._max = max_items
@@ -59,8 +46,6 @@ class _MemoryCache:
 
 
 class ResponseCache:
-    """Content-addressed cache for LLM generations and embeddings."""
-
     def __init__(self, directory: Path, ttl_seconds: int = 604_800, enabled: bool = True) -> None:
         self.enabled = enabled
         self.ttl = ttl_seconds
@@ -74,11 +59,10 @@ class ResponseCache:
                 directory.mkdir(parents=True, exist_ok=True)
                 self._backend = _DiskCache(str(directory), size_limit=2 * 1024**3)
                 return
-            except Exception as exc:  # pragma: no cover - platform specific
+            except Exception as exc:
                 log.warning("cache.disk_unavailable", error=str(exc))
         self._backend = _MemoryCache()
 
-    # ------------------------------------------------------------ generation
     @staticmethod
     def generation_key(**parts: Any) -> str:
         return "gen:" + _stable_hash(parts)
@@ -103,10 +87,9 @@ class ResponseCache:
             return
         try:
             self._backend.set(key, value, expire=self.ttl)
-        except Exception as exc:  # pragma: no cover
+        except Exception as exc:
             log.debug("cache.write_failed", error=str(exc))
 
-    # ----------------------------------------------------------------- stats
     @property
     def hit_rate(self) -> float:
         total = self.hits + self.misses
@@ -122,5 +105,5 @@ class ResponseCache:
         }
 
     def close(self) -> None:
-        with contextlib.suppress(Exception):  # pragma: no cover
+        with contextlib.suppress(Exception):
             self._backend.close()

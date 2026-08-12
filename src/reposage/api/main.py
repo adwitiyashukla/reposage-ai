@@ -1,5 +1,3 @@
-"""FastAPI application factory."""
-
 from __future__ import annotations
 
 import time
@@ -59,7 +57,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    """Build the ASGI application."""
     app = FastAPI(
         title="RepoSage",
         description=DESCRIPTION,
@@ -80,7 +77,6 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def timing(request: Request, call_next):
-        """Attach a server-timing header. Cheap, and invaluable when debugging."""
         started = time.perf_counter()
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - started) * 1000
@@ -117,10 +113,9 @@ def create_app() -> FastAPI:
 
 
 def _mount_web(app: FastAPI) -> None:
-    """Serve the bundled single-page UI, if present."""
     web_dir = Path(__file__).resolve().parent.parent / "web"
     index_html = web_dir / "index.html"
-    if not index_html.exists():  # pragma: no cover - packaging safeguard
+    if not index_html.exists():
         log.warning("api.web_missing", path=str(web_dir))
         return
 

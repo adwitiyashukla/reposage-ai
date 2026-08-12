@@ -1,12 +1,3 @@
-"""Golden dataset loading and validation.
-
-A case pairs a realistic question with the files that must be retrieved to
-answer it and the facts a correct answer must contain. Keeping ground truth at
-file granularity (rather than chunk granularity) matters: chunk boundaries move
-whenever the chunker is tuned, and a dataset that has to be rewritten every time
-you improve the system is a dataset nobody maintains.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -20,8 +11,6 @@ DEFAULT_DATASET = Path(__file__).parent / "datasets" / "golden.jsonl"
 
 @dataclass(slots=True)
 class EvalCase:
-    """One evaluated question."""
-
     id: str
     question: str
     expected_paths: list[str] = field(default_factory=list)
@@ -50,7 +39,6 @@ class EvalCase:
 
 
 def load_dataset(path: Path | None = None, limit: int | None = None) -> list[EvalCase]:
-    """Read a JSONL dataset, skipping blanks and comment lines."""
     path = path or DEFAULT_DATASET
     if not path.exists():
         raise FileNotFoundError(
@@ -64,7 +52,7 @@ def load_dataset(path: Path | None = None, limit: int | None = None) -> list[Eva
                 continue
             try:
                 cases.append(EvalCase.from_dict(orjson.loads(line)))
-            except Exception as exc:  # pragma: no cover - dataset authoring error
+            except Exception as exc:
                 raise ValueError(f"{path}:{number} is not a valid case: {exc}") from exc
     if not cases:
         raise ValueError(f"{path} contains no cases.")

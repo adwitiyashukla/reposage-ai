@@ -1,14 +1,9 @@
-# Normalise line endings so the repository is identical regardless of the OS it
-# was committed from. Without this, a Windows clone rewrites every file and the
-# first diff is 4,000 lines of nothing.
 * text=auto eol=lf
 
-# Windows-only files keep CRLF.
 *.bat  text eol=crlf
 *.cmd  text eol=crlf
 *.ps1  text eol=crlf
 
-# Binary, never diffed or normalised.
 *.png  binary
 *.jpg  binary
 *.gif  binary
@@ -16,6 +11,5 @@
 *.npy  binary
 *.npz  binary
 
-# Collapse generated and vendored files in pull request diffs.
 evals/REPORT.md   linguist-generated=true
 src/reposage/web/index.html linguist-language=HTML

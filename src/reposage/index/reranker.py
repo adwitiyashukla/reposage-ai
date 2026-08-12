@@ -1,18 +1,3 @@
-"""Cross-encoder style reranking driven by an LLM.
-
-Bi-encoder retrieval scores a query and a chunk independently, so it cannot
-model interaction between them: it finds text *about* the same topic, not text
-that *answers* the question. A reranker reads both together and is far more
-accurate at the top of the list, which is exactly where accuracy matters
-because those are the chunks that reach the answering model.
-
-A hosted cross-encoder would need a GPU and a model download. Instead we ask a
-fast LLM to score candidates listwise, in one call per window, which keeps the
-system dependency-free and runs comfortably on a free tier. Candidates are
-truncated before scoring so a handful of large chunks cannot blow the context
-budget, and any failure degrades to the fused ordering rather than erroring.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -24,7 +9,7 @@ from reposage.logging_setup import get_logger
 from reposage.models import ScoredChunk
 from reposage.observability import current_tracer
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from reposage.llm.client import LLMClient
 
 log = get_logger(__name__)
@@ -57,8 +42,6 @@ class _ScoreList(BaseModel):
 
 
 class LLMReranker:
-    """Listwise reranking of fused candidates."""
-
     def __init__(self, client: LLMClient, window: int = _WINDOW) -> None:
         self.client = client
         self.window = window
@@ -66,7 +49,6 @@ class LLMReranker:
     async def rerank(
         self, query: str, candidates: list[ScoredChunk], top_k: int
     ) -> list[ScoredChunk]:
-        """Return the ``top_k`` candidates ordered by LLM relevance."""
         if len(candidates) <= 1:
             return candidates[:top_k]
 
@@ -96,8 +78,6 @@ class LLMReranker:
                 span.set(status="degraded", reason="all windows failed")
                 return candidates[:top_k]
 
-            # Candidates from a failed window keep their fused score, mapped
-            # onto the rerank scale so the merge stays monotonic.
             for candidate in candidates:
                 if candidate.rerank_score is None:
                     candidate.rerank_score = min(5.0, candidate.score * 100)
@@ -147,5 +127,5 @@ class LLMReranker:
         for item in parsed.scores:
             if 0 <= item.id < len(window):
                 scores[item.id] = float(item.score)
-        _ = offset  # retained for traceability in logs
+        _ = offset
         return scores

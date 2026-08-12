@@ -1,5 +1,3 @@
-"""Retries, caching, structured output and the Gemini request/response shaping."""
-
 from __future__ import annotations
 
 import httpx
@@ -227,7 +225,7 @@ class TestClientBehaviour:
         )
         await client.embed(["alpha", "beta"])
         await client.embed(["alpha", "gamma"])
-        assert calls["n"] == 3  # alpha embedded once
+        assert calls["n"] == 3
         await client.aclose()
 
 
@@ -256,15 +254,8 @@ class TestRateLimiting:
 
 
 class TestQuotaShaping:
-    """The embedding quota is metered per item, not per HTTP request.
-
-    A batch of 32 spends 32 units of a 100-per-minute allowance, which is what
-    makes naive request-counting insufficient. These tests pin that behaviour.
-    """
-
     async def test_a_cost_larger_than_capacity_is_clamped(self):
         bucket = TokenBucket(rate_per_minute=10, burst=4)
-        # Without clamping this would wait forever for tokens that cannot exist.
         assert await bucket.acquire(999) == 0.0
 
     async def test_cost_is_deducted_in_full(self):
@@ -274,8 +265,6 @@ class TestQuotaShaping:
         assert await bucket.acquire(1) > 0.0
 
     async def test_embedding_uses_its_own_bucket(self, settings):
-        """Embedding must not consume the generation allowance, or an index
-        build would starve every subsequent question."""
         settings.max_rpm = 6000
         settings.embed_rpm = 6000
         settings.ensure_dirs()
@@ -294,15 +283,11 @@ class TestQuotaShaping:
         await client.aclose()
 
     async def test_default_burst_stays_inside_a_rolling_window(self):
-        """A full-rate burst plus a full minute of refill would exceed the
-        provider's hard window, which is exactly how the first 429 happened."""
         bucket = TokenBucket(rate_per_minute=100)
         assert bucket.capacity == 20
         assert bucket.capacity + bucket.rate_per_minute <= 120
 
     async def test_rate_limit_backoff_can_outlast_a_full_window(self, settings):
-        """Quotas reset on a per-minute boundary. A retry schedule that gives up
-        in under a minute can fail on a limit that was about to clear."""
         settings.max_retries = 6
         delays: list[float] = []
 
@@ -329,9 +314,6 @@ class TestQuotaShaping:
         assert sum(delays) >= 60.0, f"total backoff {sum(delays):.1f}s cannot span a quota window"
 
     async def test_embedding_is_serialised(self, settings):
-        """Concurrent embedding batches convert smooth pacing into bursts that
-        land together inside the provider's rolling window. The bucket sets the
-        throughput either way, so parallelism buys nothing and costs 429s."""
         import asyncio as _asyncio
 
         settings.embed_concurrency = 1
@@ -360,8 +342,6 @@ class TestQuotaShaping:
         assert peak == 1, f"expected serialised embedding, saw {peak} concurrent requests"
 
     async def test_generation_concurrency_is_unaffected(self, settings):
-        """Serialising embeddings must not serialise generation, which has its
-        own, much looser quota."""
         settings.embed_concurrency = 1
         settings.max_concurrency = 8
         settings.ensure_dirs()

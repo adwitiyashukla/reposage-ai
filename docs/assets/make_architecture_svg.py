@@ -1,16 +1,3 @@
-"""Generate the architecture diagram as SVG.
-
-GitHub's Mermaid renderer is version-pinned and occasionally fails on diagrams
-that parse cleanly everywhere else, which leaves a broken box where the most
-important picture in the README should be. A committed SVG always renders, on
-GitHub and anywhere the README is mirrored.
-
-Two files are emitted from one layout so the light and dark variants can never
-drift apart. Regenerate with:
-
-    python docs/assets/make_architecture_svg.py
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,20 +5,38 @@ from pathlib import Path
 W, H = 1000, 575
 
 LIGHT = {
-    "band": "#f6f8fa", "band_stroke": "#d0d7de", "band_label": "#57606a",
-    "box": "#ffffff", "box_stroke": "#d0d7de", "text": "#1f2328", "sub": "#57606a",
-    "accent": "#ddf4ff", "accent_stroke": "#54aeff",
-    "store": "#fff8c5", "store_stroke": "#d4a72c",
-    "out": "#dafbe1", "out_stroke": "#2da44e",
-    "arrow": "#6e7781", "loop": "#cf222e",
+    "band": "#f6f8fa",
+    "band_stroke": "#d0d7de",
+    "band_label": "#57606a",
+    "box": "#ffffff",
+    "box_stroke": "#d0d7de",
+    "text": "#1f2328",
+    "sub": "#57606a",
+    "accent": "#ddf4ff",
+    "accent_stroke": "#54aeff",
+    "store": "#fff8c5",
+    "store_stroke": "#d4a72c",
+    "out": "#dafbe1",
+    "out_stroke": "#2da44e",
+    "arrow": "#6e7781",
+    "loop": "#cf222e",
 }
 DARK = {
-    "band": "#161b22", "band_stroke": "#30363d", "band_label": "#8b949e",
-    "box": "#0d1117", "box_stroke": "#30363d", "text": "#e6edf3", "sub": "#8b949e",
-    "accent": "#0d2d6b", "accent_stroke": "#316dca",
-    "store": "#3a2a00", "store_stroke": "#9e6a03",
-    "out": "#0f2f1a", "out_stroke": "#2ea043",
-    "arrow": "#8b949e", "loop": "#f85149",
+    "band": "#161b22",
+    "band_stroke": "#30363d",
+    "band_label": "#8b949e",
+    "box": "#0d1117",
+    "box_stroke": "#30363d",
+    "text": "#e6edf3",
+    "sub": "#8b949e",
+    "accent": "#0d2d6b",
+    "accent_stroke": "#316dca",
+    "store": "#3a2a00",
+    "store_stroke": "#9e6a03",
+    "out": "#0f2f1a",
+    "out_stroke": "#2ea043",
+    "arrow": "#8b949e",
+    "loop": "#f85149",
 }
 
 FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
@@ -123,14 +128,10 @@ def render(p: dict[str, str]) -> str:
         "</defs>",
     ]
 
-    # ---------------------------------------------------------------- bands
-    # Bands stop short of the right edge, leaving a routing channel at x=945
-    # for the long feedback edge that would otherwise cut through them.
     s.append(band(20, 20, 900, 130, "INGESTION", p))
     s.append(band(20, 172, 900, 130, "INDEX", p))
     s.append(band(20, 324, 900, 225, "AGENT", p))
 
-    # ------------------------------------------------------------ ingestion
     y = 62
     s.append(box(40, y, 160, 62, "Git repository", "clone or local path", p))
     s.append(box(240, y, 185, 62, "Walker", "gitignore, binaries, budget", p))
@@ -139,7 +140,6 @@ def render(p: dict[str, str]) -> str:
     for x1, x2 in ((200, 240), (425, 465), (665, 705)):
         s.append(arrow(x1, y + 31, x2 - 4, y + 31, p))
 
-    # ---------------------------------------------------------------- index
     yi = 214
     s.append(box(240, yi, 185, 62, "Gemini embeddings", "cached, quota-shaped", p))
     s.append(box(465, yi, 200, 62, "Vector store", "exact cosine, float32", p, "store"))
@@ -148,7 +148,6 @@ def render(p: dict[str, str]) -> str:
     s.append(elbow([(565, 124), (565, 160), (332, 160), (332, yi - 4)], p))
     s.append(elbow([(565, 124), (565, 160), (792, 160), (792, yi - 4)], p))
 
-    # ---------------------------------------------------------------- agent
     ya = 366
     s.append(box(40, ya, 140, 58, "Question", None, p))
     s.append(box(215, ya, 140, 58, "Plan", "decompose", p, "accent"))
@@ -169,17 +168,23 @@ def render(p: dict[str, str]) -> str:
     s.append(
         elbow(
             [(640, yb), (640, 452), (465, 452), (465, ya + 62)],
-            p, colour=p["loop"], label="refine", lx=553, ly=447,
+            p,
+            colour=p["loop"],
+            label="refine",
+            lx=553,
+            ly=447,
         )
     )
-    # The planner reads the repository map before writing any query.
     s.append(
         elbow(
             [(880, 93), (945, 93), (945, 344), (285, 344), (285, ya - 4)],
-            p, dashed=True, label="repository map", lx=700, ly=338,
+            p,
+            dashed=True,
+            label="repository map",
+            lx=700,
+            ly=338,
         )
     )
-    # Both indexes feed retrieval.
     s.append(elbow([(565, 276), (565, 308), (430, 308), (430, ya - 4)], p))
     s.append(elbow([(792, 276), (792, 316), (500, 316), (500, ya - 4)], p))
 

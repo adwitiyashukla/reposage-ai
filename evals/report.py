@@ -1,15 +1,8 @@
-"""Markdown report rendering.
-
-The report is written to be committed. A reviewer opening the diff should be
-able to see, without running anything, that recall moved from 0.62 to 0.81 and
-what it cost.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from evals.harness import EvalReport
 
 
@@ -19,7 +12,6 @@ def _bar(value: float, width: int = 18) -> str:
 
 
 def render_report(report: EvalReport) -> str:
-    """Render a full evaluation run as markdown."""
     summary = report.summary
     lines: list[str] = [
         "# RepoSage evaluation report",

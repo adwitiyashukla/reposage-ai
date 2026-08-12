@@ -1,20 +1,3 @@
-"""The hybrid retrieval pipeline.
-
-For each query the retriever runs three stages:
-
-1. **Recall.** Dense search (semantic) and BM25 (lexical) run over every query
-   variant the planner produced. All query embeddings are computed in a single
-   batched call, so N sub-queries cost one round trip rather than N.
-2. **Fusion.** Ranked lists are combined with reciprocal rank fusion, then
-   optionally boosted for paths the planner flagged as likely.
-3. **Precision.** The fused shortlist is diversified so no single file can
-   monopolise the context window, then reranked by an LLM that reads the query
-   and candidate together.
-
-Everything is instrumented. :class:`RetrievalDebug` records what each stage
-contributed, which is what makes a bad answer diagnosable instead of mysterious.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -32,7 +15,7 @@ from reposage.logging_setup import get_logger
 from reposage.models import ScoredChunk
 from reposage.observability import current_tracer
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from reposage.llm.client import LLMClient
 
 log = get_logger(__name__)
@@ -46,8 +29,6 @@ NEIGHBOUR_RADIUS = 1
 
 @dataclass
 class RetrievalDebug:
-    """Per-stage accounting for one retrieval call."""
-
     queries: list[str] = field(default_factory=list)
     dense_hits: int = 0
     lexical_hits: int = 0
@@ -73,8 +54,6 @@ class RetrievalDebug:
 
 
 class HybridRetriever:
-    """Dense + lexical retrieval with fusion, diversification and reranking."""
-
     def __init__(
         self,
         index: RepoIndex,
@@ -96,13 +75,6 @@ class HybridRetriever:
         expand_neighbours: bool = True,
         mode: str = "hybrid",
     ) -> tuple[list[ScoredChunk], RetrievalDebug]:
-        """Retrieve the most relevant chunks for one or more query phrasings.
-
-        ``mode`` selects which retrievers participate: ``hybrid`` (default),
-        ``dense`` or ``lexical``. The single-retriever modes exist so the
-        evaluation harness can run ablations against the exact production code
-        path rather than a reimplementation of it.
-        """
         if isinstance(queries, str):
             queries = [queries]
         queries = [q.strip() for q in queries if q and q.strip()][:8]
@@ -175,9 +147,7 @@ class HybridRetriever:
             )
         return selected, debug
 
-    # ------------------------------------------------------------- retrievers
     async def _dense(self, queries: list[str], k: int) -> list[list[str]]:
-        """Embed every query in one batch, then run a single batched matmul."""
         if len(self.index.vectors) == 0:
             return []
         vectors = await self.client.embed(queries, task_type="RETRIEVAL_QUERY")
@@ -196,7 +166,6 @@ class HybridRetriever:
             return []
         return [[doc_id for doc_id, _ in self.index.lexical.search(q, k)] for q in queries]
 
-    # -------------------------------------------------------------- refinement
     def _to_scored(self, fused: list[Any], path_hints: list[str] | None) -> list[ScoredChunk]:
         hints = [h.lower().strip("/") for h in (path_hints or []) if h]
         scored: list[ScoredChunk] = []
@@ -223,11 +192,6 @@ class HybridRetriever:
 
     @staticmethod
     def _diversify(scored: list[ScoredChunk], limit: int) -> list[ScoredChunk]:
-        """Cap chunks per file so one large file cannot crowd out the answer.
-
-        Overflow is not discarded: it is appended after the diversified head, so
-        a genuinely single-file answer still gets the depth it needs.
-        """
         per_file: dict[str, int] = defaultdict(int)
         primary: list[ScoredChunk] = []
         overflow: list[ScoredChunk] = []
@@ -243,12 +207,6 @@ class HybridRetriever:
         return (primary + overflow)[:limit]
 
     def _add_neighbours(self, selected: list[ScoredChunk], limit: int) -> list[ScoredChunk]:
-        """Pull in immediately adjacent chunks to repair split context.
-
-        A retrieved function often depends on the constant or helper defined
-        directly above it. Adding neighbours is far cheaper than a second
-        retrieval round and fixes most "the answer was almost there" failures.
-        """
         chosen = {c.chunk.chunk_id for c in selected}
         additions: list[ScoredChunk] = []
         for candidate in list(selected):
@@ -259,7 +217,7 @@ class HybridRetriever:
                 position = next(
                     i for i, c in enumerate(siblings) if c.chunk_id == candidate.chunk.chunk_id
                 )
-            except StopIteration:  # pragma: no cover - defensive
+            except StopIteration:
                 continue
             for offset in range(-NEIGHBOUR_RADIUS, NEIGHBOUR_RADIUS + 1):
                 neighbour_index = position + offset
@@ -279,11 +237,9 @@ class HybridRetriever:
                 )
         return selected + additions
 
-    # ------------------------------------------------------------------ misc
     def context_budget(
         self, chunks: list[ScoredChunk], max_tokens: int = 60_000
     ) -> list[ScoredChunk]:
-        """Trim a chunk list to fit a token budget, highest scoring first."""
         kept: list[ScoredChunk] = []
         used = 0
         for candidate in chunks:

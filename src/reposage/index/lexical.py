@@ -1,20 +1,3 @@
-"""BM25 lexical retrieval with a code-aware tokenizer.
-
-Dense retrieval alone is weak on exactly the queries developers ask most: exact
-identifier lookups. Embeddings map ``ProcessPaymentIntent`` and
-``handle_payment`` to nearby points, which is helpful for concept search and
-actively harmful when the user typed a specific symbol they want to find.
-
-Two decisions make the lexical side pull its weight:
-
-* **Identifier splitting.** ``getUserByID`` indexes as the whole token *and* as
-  ``get``, ``user``, ``by``, ``id``. A query for either form now matches, which
-  a naive whitespace tokenizer cannot do.
-* **A hand-rolled sparse index.** An inverted index with NumPy postings scores a
-  query in a single vectorised pass per term. It also serialises to two small
-  files, so an index round-trips without a database.
-"""
-
 from __future__ import annotations
 
 import math
@@ -33,7 +16,6 @@ _SPLIT = re.compile(r"[^A-Za-z0-9_]+")
 _CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])")
 _DIGIT_BOUNDARY = re.compile(r"(?<=[A-Za-z])(?=\d)|(?<=\d)(?=[A-Za-z])")
 
-# Terms so common in source code that they carry no discriminative signal.
 STOPWORDS: frozenset[str] = frozenset(
     {
         "the",
@@ -95,7 +77,6 @@ STOPWORDS: frozenset[str] = frozenset(
 
 
 def tokenize_code(text: str, *, min_length: int = 2, max_tokens: int = 4000) -> list[str]:
-    """Tokenize source text, expanding compound identifiers into their parts."""
     tokens: list[str] = []
     for raw in _SPLIT.split(text):
         if not raw:
@@ -103,7 +84,6 @@ def tokenize_code(text: str, *, min_length: int = 2, max_tokens: int = 4000) -> 
         lowered = raw.lower()
         if len(lowered) >= min_length and lowered not in STOPWORDS:
             tokens.append(lowered)
-        # Only decompose genuinely compound identifiers.
         if len(raw) > 3 and ("_" in raw or _CAMEL.search(raw)):
             for piece in _CAMEL.sub(" ", raw).replace("_", " ").split():
                 for part in _DIGIT_BOUNDARY.sub(" ", piece).split():
@@ -116,8 +96,6 @@ def tokenize_code(text: str, *, min_length: int = 2, max_tokens: int = 4000) -> 
 
 
 class BM25Index:
-    """Okapi BM25 over an inverted index with NumPy postings."""
-
     POSTINGS_FILE = "bm25.npz"
     META_FILE = "bm25_meta.json"
 
@@ -128,13 +106,10 @@ class BM25Index:
         self.doc_lengths: np.ndarray = np.zeros(0, dtype=np.float32)
         self.avg_doc_length: float = 0.0
         self.vocabulary: dict[str, int] = {}
-        # term_id -> (document indices, term frequencies)
         self.postings: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         self.idf: np.ndarray = np.zeros(0, dtype=np.float32)
 
-    # ----------------------------------------------------------------- build
     def build(self, doc_ids: list[str], documents: list[str]) -> None:
-        """Construct the index. Rebuilding is cheap enough to prefer over updates."""
         if len(doc_ids) != len(documents):
             raise ValueError("doc_ids and documents must be the same length")
         self.doc_ids = list(doc_ids)
@@ -177,9 +152,7 @@ class BM25Index:
         self.idf = idf
         log.debug("bm25.built", documents=num_docs, vocabulary=len(vocabulary))
 
-    # ---------------------------------------------------------------- search
     def search(self, query: str, k: int = 40) -> list[tuple[str, float]]:
-        """Top-``k`` ``(doc_id, score)`` pairs for ``query``."""
         if not self.doc_ids or not self.postings:
             return []
         terms = tokenize_code(query)
@@ -207,7 +180,6 @@ class BM25Index:
         top = top[np.argsort(-scores[top])]
         return [(self.doc_ids[int(i)], float(scores[int(i)])) for i in top if scores[int(i)] > 0]
 
-    # ----------------------------------------------------------- persistence
     def save(self, directory: Path) -> None:
         directory.mkdir(parents=True, exist_ok=True)
         if not self.postings:

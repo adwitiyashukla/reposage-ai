@@ -1,5 +1,3 @@
-"""Index lifecycle: list, build, inspect and delete."""
-
 from __future__ import annotations
 
 import asyncio
@@ -28,7 +26,6 @@ _DEMO_LOCKED = (
 
 
 def _reject_if_demo() -> None:
-    """Write operations are unavailable on the hosted demo."""
     if get_state().settings.demo_mode:
         raise HTTPException(status_code=403, detail=_DEMO_LOCKED)
 
@@ -61,10 +58,6 @@ async def delete(name: str) -> dict:
 
 @router.post("", response_model=IndexResponse, summary="Build an index synchronously")
 async def build(request: IndexRequest) -> IndexResponse:
-    """Clone, chunk, embed and persist a repository.
-
-    Long-running. Prefer the streaming variant for anything a user is watching.
-    """
     _reject_if_demo()
     state = get_state()
     if not state.settings.has_api_key:
@@ -107,7 +100,6 @@ async def build(request: IndexRequest) -> IndexResponse:
 async def build_streaming(
     source: str, branch: str | None = None, refresh: bool = False
 ) -> EventSourceResponse:
-    """Same work as POST /indexes, with progress events as they happen."""
     _reject_if_demo()
     state = get_state()
     if not state.settings.has_api_key:

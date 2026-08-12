@@ -1,10 +1,3 @@
-"""Core domain models shared by every layer.
-
-Dataclasses are used on hot paths (chunking, scoring) where allocation cost
-matters; Pydantic models are used at trust boundaries (HTTP, persisted JSON)
-where validation matters.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -16,8 +9,6 @@ from pydantic import BaseModel, Field
 
 
 class ChunkKind(str, Enum):
-    """Semantic role of a chunk, derived from the AST where possible."""
-
     FUNCTION = "function"
     METHOD = "method"
     CLASS = "class"
@@ -30,8 +21,6 @@ class ChunkKind(str, Enum):
 
 
 class Severity(str, Enum):
-    """Severity ladder used by the PR review agent."""
-
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -43,24 +32,18 @@ class Severity(str, Enum):
         return {"critical": 0, "high": 1, "medium": 2, "low": 3, "nit": 4}[self.value]
 
     @property
-    def emoji(self) -> str:
+    def label(self) -> str:
         return {
-            "critical": "\U0001f6a8",
-            "high": "⚠️",
-            "medium": "\U0001f7e1",
-            "low": "\U0001f535",
-            "nit": "\U0001f4ac",
+            "critical": "CRITICAL",
+            "high": "HIGH",
+            "medium": "MEDIUM",
+            "low": "LOW",
+            "nit": "NIT",
         }[self.value]
 
 
 @dataclass(slots=True)
 class Chunk:
-    """A retrievable unit of code or prose.
-
-    Chunks are line-addressable so that every downstream citation can point at
-    an exact range in an exact file, which is what makes answers verifiable.
-    """
-
     path: str
     content: str
     start_line: int
@@ -92,11 +75,9 @@ class Chunk:
 
     @property
     def token_estimate(self) -> int:
-        """Cheap 4-chars-per-token heuristic, good enough for budget planning."""
         return max(1, len(self.content) // 4)
 
     def render(self, with_header: bool = True) -> str:
-        """Format for injection into a prompt."""
         if not with_header:
             return self.content
         header = f"// {self.location}"
@@ -118,8 +99,6 @@ class Chunk:
 
 @dataclass(slots=True)
 class ScoredChunk:
-    """A chunk plus the provenance of how it was retrieved."""
-
     chunk: Chunk
     score: float
     dense_rank: int | None = None
@@ -133,7 +112,6 @@ class ScoredChunk:
 
     @property
     def provenance(self) -> str:
-        """Human-readable explanation of why this chunk surfaced."""
         parts = []
         if self.dense_rank is not None:
             parts.append(f"dense#{self.dense_rank + 1}")
@@ -145,8 +123,6 @@ class ScoredChunk:
 
 
 class Citation(BaseModel):
-    """A verifiable pointer back into the source tree."""
-
     path: str
     start_line: int
     end_line: int
@@ -159,8 +135,6 @@ class Citation(BaseModel):
 
 
 class Usage(BaseModel):
-    """Token and cost accounting for a single run."""
-
     prompt_tokens: int = 0
     completion_tokens: int = 0
     embedding_tokens: int = 0
@@ -184,16 +158,12 @@ class Usage(BaseModel):
 
 
 class SubQuestion(BaseModel):
-    """One decomposed retrieval objective produced by the planner."""
-
     question: str
     search_queries: list[str] = Field(default_factory=list)
     rationale: str = ""
 
 
 class QueryPlan(BaseModel):
-    """The planner's structured output."""
-
     intent: str = "explain"
     restated_question: str = ""
     sub_questions: list[SubQuestion] = Field(default_factory=list)
@@ -214,14 +184,12 @@ class QueryPlan(BaseModel):
 
 
 class Critique(BaseModel):
-    """The critic's verdict on a draft answer."""
-
     grounded: bool = True
     complete: bool = True
     confidence: float = 0.8
     issues: list[str] = Field(default_factory=list)
     follow_up_queries: list[str] = Field(default_factory=list)
-    verdict: str = "accept"  # accept | refine
+    verdict: str = "accept"
 
     @property
     def needs_refinement(self) -> bool:
@@ -229,8 +197,6 @@ class Critique(BaseModel):
 
 
 class AgentAnswer(BaseModel):
-    """The final artefact returned to a caller."""
-
     question: str
     answer: str
     citations: list[Citation] = Field(default_factory=list)
@@ -244,8 +210,6 @@ class AgentAnswer(BaseModel):
 
 
 class ReviewFinding(BaseModel):
-    """A single issue raised by the PR review agent."""
-
     path: str
     line: int | None = None
     severity: Severity = Severity.MEDIUM
@@ -258,7 +222,7 @@ class ReviewFinding(BaseModel):
     def to_markdown(self) -> str:
         loc = f"`{self.path}`" + (f" line {self.line}" if self.line else "")
         out = [
-            f"{self.severity.emoji} **{self.severity.value.upper()} - {self.title}**",
+            f"**{self.severity.label} - {self.title}**",
             "",
             f"{loc} - _{self.category}_",
             "",
@@ -270,8 +234,6 @@ class ReviewFinding(BaseModel):
 
 
 class ReviewReport(BaseModel):
-    """Aggregate output of a pull-request review."""
-
     findings: list[ReviewFinding] = Field(default_factory=list)
     summary: str = ""
     files_reviewed: int = 0
@@ -288,8 +250,6 @@ class ReviewReport(BaseModel):
 
 @dataclass
 class RepoMetadata:
-    """Everything we know about an indexed repository."""
-
     repo_id: str
     source: str
     name: str

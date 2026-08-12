@@ -1,5 +1,3 @@
-"""Evaluation metrics and dataset integrity."""
-
 from __future__ import annotations
 
 import pytest
@@ -89,7 +87,6 @@ class TestGoldenDataset:
             assert case.reference_answer.strip(), case.id
 
     def test_expected_paths_exist_in_this_repository(self):
-        """The dataset targets RepoSage itself, so ground truth must stay in sync."""
         root = DEFAULT_DATASET.parent.parent.parent
         missing = [
             (case.id, path)

@@ -471,7 +471,7 @@
       const configured = health.llm.configured;
       pill.className = "dot " + (configured ? "ok" : "warn");
       $("model-text").textContent = configured
-        ? health.llm.deep_model + " · v" + health.version
+        ? health.llm.deep_model + " v" + health.version
         : "GEMINI_API_KEY not set";
       if (!configured) toast("Set GEMINI_API_KEY in your .env file to enable the model.", true);
     } catch (err) {
@@ -493,9 +493,9 @@
     list.innerHTML = state.indexes.map((entry) =>
       '<button class="repo-item ' + (entry.id === state.repo ? "active" : "") + '" data-id="' + esc(entry.id) + '">'
       + '<div class="name">' + esc(entry.name) + "</div>"
-      + '<div class="meta">' + entry.files.toLocaleString() + " files · "
+      + '<div class="meta">' + entry.files.toLocaleString() + " files, "
       + entry.chunks.toLocaleString() + " chunks"
-      + (entry.commit ? " · " + esc(entry.commit) : "") + "</div></button>").join("");
+      + (entry.commit ? ", " + esc(entry.commit) : "") + "</div></button>").join("");
     list.querySelectorAll(".repo-item").forEach((node) =>
       node.addEventListener("click", () => selectRepo(node.dataset.id)));
 
@@ -514,7 +514,7 @@
         ["files", meta.num_files.toLocaleString()],
         ["chunks", meta.num_chunks.toLocaleString()],
         ["lines", (meta.total_lines || 0).toLocaleString()],
-        ["vectors", detail.vector_store.vectors.toLocaleString() + " × " + detail.vector_store.dim],
+        ["vectors", detail.vector_store.vectors.toLocaleString() + " x " + detail.vector_store.dim],
         ["vocabulary", detail.lexical.vocabulary.toLocaleString()],
         ["languages", Object.keys(meta.languages || {}).slice(0, 3).join(", ")],
         // An index built from a working tree has no commit; showing an empty or
@@ -592,7 +592,7 @@
     if (HIDDEN_SPANS.has(payload.name)) return;
     const row = document.createElement("div");
     row.className = "trace-row running";
-    row.innerHTML = '<span class="glyph spin">◌</span><span class="label">'
+    row.innerHTML = '<span class="glyph spin">o</span><span class="label">'
       + esc(SPAN_LABELS[payload.name] || payload.name) + '</span><span class="ms"></span>';
     $("trace").appendChild(row);
     state.spans.set(payload.span_id, row);
@@ -606,7 +606,7 @@
     row.className = "trace-row " + (failed ? "err" : "done");
     const glyph = row.querySelector(".glyph");
     glyph.className = "glyph";
-    glyph.textContent = failed ? "✗" : "✓";
+    glyph.textContent = failed ? "x" : "+";
     row.querySelector(".ms").textContent = Math.round(payload.duration_ms) + "ms";
 
     const notes = [];
@@ -618,7 +618,7 @@
     if (notes.length) {
       const note = document.createElement("div");
       note.className = "trace-row log";
-      note.innerHTML = '<span class="glyph"></span><span class="label">' + esc(notes.join(" · ")) + "</span>";
+      note.innerHTML = '<span class="glyph"></span><span class="label">' + esc(notes.join(", ")) + "</span>";
       row.insertAdjacentElement("afterend", note);
     }
   }

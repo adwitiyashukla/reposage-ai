@@ -1,18 +1,3 @@
-"""The pull-request review agent.
-
-The thing that separates a useful automated reviewer from a noise generator is
-context. A model shown only a diff will confidently flag a missing null check
-that is guaranteed by a caller three files away, or miss that a renamed method
-has six other call sites. So before reviewing each file this agent retrieves the
-surrounding code from the indexed repository using the identifiers the diff
-touches, and reviews the change against that.
-
-The second thing is discipline about output. Findings are filtered by model
-confidence, anchored to lines that actually changed, and deduplicated, because a
-review with three real findings gets read and one with thirty speculative ones
-gets muted.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +19,7 @@ from reposage.models import ReviewFinding, ReviewReport, Severity
 from reposage.observability import current_tracer
 from reposage.review.diff import DiffFile, ParsedDiff, parse_unified_diff
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from reposage.index.retriever import HybridRetriever
 
 log = get_logger(__name__)
@@ -46,8 +31,6 @@ CONTEXT_CHUNKS = 6
 
 
 class _Finding(BaseModel):
-    """Wire format for one finding, before validation and anchoring."""
-
     line: int | None = Field(default=None, description="Line number in the new file")
     severity: str = "medium"
     category: str = "correctness"
@@ -63,8 +46,6 @@ class _FileReview(BaseModel):
 
 
 class PullRequestReviewer:
-    """Reviews a unified diff, optionally grounded in an indexed repository."""
-
     def __init__(
         self,
         client: LLMClient,
@@ -75,7 +56,6 @@ class PullRequestReviewer:
         self.retriever = retriever
         self.settings = settings or get_settings()
 
-    # ------------------------------------------------------------------ API
     async def review(
         self,
         diff_text: str,
@@ -85,7 +65,6 @@ class PullRequestReviewer:
         concurrency: int = 3,
         min_confidence: float = MIN_CONFIDENCE,
     ) -> ReviewReport:
-        """Review a unified diff and return findings plus a summary."""
         started = time.perf_counter()
         tracer = current_tracer()
         diff = parse_unified_diff(diff_text)
@@ -139,7 +118,6 @@ class PullRequestReviewer:
         )
         return report
 
-    # -------------------------------------------------------------- internals
     async def _review_file(
         self,
         diff_file: DiffFile,
@@ -178,7 +156,6 @@ class PullRequestReviewer:
             return valid[:MAX_FINDINGS_PER_FILE]
 
     async def _related_context(self, diff_file: DiffFile) -> str:
-        """Retrieve repository code related to the identifiers this diff touches."""
         if self.retriever is None:
             return ""
         terms = diff_file.search_terms()
@@ -199,8 +176,6 @@ class PullRequestReviewer:
         except Exception as exc:
             log.debug("review.context_failed", path=diff_file.path, error=str(exc)[:160])
             return ""
-        # Exclude the file under review: the diff already shows it, and repeating
-        # it wastes context and invites comments on unchanged lines.
         chunks = [c for c in chunks if c.chunk.path != diff_file.path][:CONTEXT_CHUNKS]
         if not chunks:
             return ""
@@ -246,7 +221,6 @@ class PullRequestReviewer:
 def _validate(
     raw_findings: list[_Finding], diff_file: DiffFile, min_confidence: float
 ) -> list[ReviewFinding]:
-    """Anchor findings to changed lines and drop low-confidence noise."""
     changed = diff_file.changed_line_numbers
     validated: list[ReviewFinding] = []
 
@@ -262,9 +236,6 @@ def _validate(
 
         line = raw.line
         if line is not None and changed and line not in changed:
-            # The model is often a line or two off. Snap to the nearest changed
-            # line when it is close, otherwise drop the anchor and comment at
-            # file level rather than pointing somewhere misleading.
             nearest = min(changed, key=lambda candidate: abs(candidate - line))
             line = nearest if abs(nearest - line) <= 3 else None
 
@@ -284,7 +255,6 @@ def _validate(
 
 
 def _deduplicate(findings: list[ReviewFinding]) -> list[ReviewFinding]:
-    """Collapse findings that repeat the same point at the same location."""
     seen: dict[tuple[str, int, str], ReviewFinding] = {}
     for finding in findings:
         key = (finding.path, finding.line or -1, finding.title.lower()[:60])

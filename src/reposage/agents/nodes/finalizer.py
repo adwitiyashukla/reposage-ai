@@ -1,5 +1,3 @@
-"""Finalisation node: extract and validate citations, score confidence."""
-
 from __future__ import annotations
 
 import re
@@ -11,25 +9,12 @@ from reposage.observability import current_tracer
 
 log = get_logger(__name__)
 
-# Models group references far more often than the prompt asks them to, and the
-# grouped forms are the ones that carry the most evidence:
-#
-#   [src/auth/jwt.py:12-48]                          one reference
-#   [src/auth/jwt.py:12]                             a single line
-#   [src/auth/jwt.py:12-48, src/api.py:3-9]          two files at once
-#   [src/auth/jwt.py:12-48, 90-104]                  two ranges in the same file
-#
-# Matching only the first form discarded roughly half the citations in practice,
-# which then read as a low-evidence answer and depressed the confidence score.
-# So brackets are located first, then split on commas, with a bare range
-# inheriting the path from the reference before it.
 _BRACKET = re.compile(r"\[([^\[\]]{3,400}?)\]")
 _REF = re.compile(r"^\s*([^\s:]+?\.[A-Za-z0-9_]+):(\d+)(?:\s*[-\u2013]\s*(\d+))?\s*$")
 _BARE_RANGE = re.compile(r"^\s*(\d+)(?:\s*[-\u2013]\s*(\d+))?\s*$")
 
 
 def parse_citation_markers(text: str) -> list[tuple[str, int, int]]:
-    """Extract ``(path, start, end)`` triples from inline citation markers."""
     found: list[tuple[str, int, int]] = []
     for bracket in _BRACKET.finditer(text or ""):
         last_path: str | None = None
@@ -42,8 +27,6 @@ def parse_citation_markers(text: str) -> list[tuple[str, int, int]]:
                 start_raw, end_raw = match.groups()
                 path = last_path
             else:
-                # A bracket holding prose is not a citation; abandon the group
-                # so "[see below, line 4]" cannot inherit an unrelated path.
                 last_path = None
                 continue
             start = int(start_raw)
@@ -52,17 +35,10 @@ def parse_citation_markers(text: str) -> list[tuple[str, int, int]]:
     return found
 
 
-# The highest confidence the system will ever report. See _score.
 _CONFIDENCE_CEILING = 0.97
 
 
 async def finalizer_node(state: AgentState, deps: AgentDeps) -> dict:
-    """Resolve inline citation markers against the index and score the answer.
-
-    Citations are *verified*, not merely parsed: a marker pointing at a file that
-    is not in the index is dropped and counted against confidence. That closes
-    the most common way a grounded-looking answer is still wrong.
-    """
     tracer = current_tracer()
     draft = state.get("draft", "")
 
@@ -107,7 +83,6 @@ async def finalizer_node(state: AgentState, deps: AgentDeps) -> dict:
 
 
 def _resolve_path(path: str, known: set[str]) -> str | None:
-    """Accept a suffix match, which is how models usually shorten paths."""
     candidates = [p for p in known if p.endswith(path) or p.endswith("/" + path)]
     return min(candidates, key=len) if len(candidates) >= 1 else None
 
@@ -136,12 +111,6 @@ def _score(
     invalid: int,
     retrieved_paths: set[str],
 ) -> float:
-    """Blend the critic's judgement with objective grounding signals.
-
-    The critic is a language model judging itself, so its confidence alone is not
-    trustworthy. We temper it with things we can verify: whether citations exist,
-    whether they resolve, and whether they point at code we actually retrieved.
-    """
     critique = state.get("critique")
     base = critique.confidence if critique else 0.5
     if critique:
@@ -159,17 +128,10 @@ def _score(
         base = min(1.0, base * (1.0 + 0.04 * min(len(citations), 5)))
 
     if invalid:
-        # Proportional to how much of the evidence failed, not to the raw count:
-        # a long answer with twenty good citations and two bad ones is not
-        # meaningfully less trustworthy than one with ten and none.
         share_bad = invalid / max(1, invalid + len(citations))
         base *= max(0.55, 1.0 - 0.6 * share_bad)
 
     if state.get("errors"):
         base *= 0.9
 
-    # Never report certainty. The critic routinely returns 1.0, and an answer
-    # built from a partial view of a codebase is never certain: retrieval may
-    # simply have missed the file that contradicts it. Capping below 1.0 keeps
-    # the number honest and preserves headroom for ranking answers.
     return round(max(0.0, min(_CONFIDENCE_CEILING, base)), 3)

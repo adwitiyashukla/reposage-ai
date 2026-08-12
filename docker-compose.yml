@@ -1,7 +1,3 @@
-# Run the whole thing with:  docker compose up --build
-#
-# Indexes live in a named volume, so rebuilding the image does not throw away
-# work that cost embedding tokens to produce.
 services:
   reposage:
     build:

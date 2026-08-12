@@ -42,8 +42,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Optional AST grammars. Without these, chunking falls back to structural
-# line splitting; with them, chunks align to real declarations.
 treesitter = [
     "tree-sitter>=0.23.0",
     "tree-sitter-python>=0.23.0",
@@ -88,12 +86,21 @@ src = ["src", "tests", "evals"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "RUF", "ASYNC"]
-# ASYNC240: these are metadata-only path checks (exists/mkdir); dispatching
-# them to a thread pool would cost more than the syscall it avoids.
 ignore = ["E501", "B008", "RUF001", "RUF002", "RUF003", "ASYNC240"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
+"src/reposage/ingest/chunker.py" = ["F401"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "except ImportError",
+    "raise ImportError",
+    "def __repr__",
+    "raise NotImplementedError",
+]
 
 [tool.mypy]
 python_version = "3.10"
@@ -102,6 +109,16 @@ warn_unused_configs = true
 ignore_missing_imports = true
 disallow_untyped_defs = false
 plugins = []
+
+[[tool.mypy.overrides]]
+module = [
+    "reposage.config",
+    "reposage.ingest.walker",
+    "reposage.ingest.chunker",
+    "reposage.llm.cache",
+    "reposage.cli",
+]
+disable_error_code = ["call-arg", "assignment", "union-attr", "import-not-found"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

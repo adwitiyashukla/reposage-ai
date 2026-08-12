@@ -1,5 +1,3 @@
-"""HTTP surface."""
-
 from __future__ import annotations
 
 import pytest
@@ -14,7 +12,6 @@ from reposage.observability import Tracer, use_tracer
 
 @pytest.fixture
 async def app_client(sample_repo, settings, client, monkeypatch):
-    """An app wired to the fake model and a freshly built index."""
     with use_tracer(Tracer()):
         ingestion = await IngestionPipeline(settings).run(str(sample_repo))
         index = await RepoIndex.build(ingestion, client, settings=settings)

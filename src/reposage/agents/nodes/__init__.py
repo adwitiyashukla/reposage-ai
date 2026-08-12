@@ -1,5 +1,3 @@
-"""Individual agent nodes. Each is a pure ``state -> partial state`` function."""
-
 from reposage.agents.nodes.analyst import analyst_node
 from reposage.agents.nodes.critic import critic_node
 from reposage.agents.nodes.finalizer import finalizer_node

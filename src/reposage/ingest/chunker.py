@@ -1,25 +1,3 @@
-"""Semantic chunking.
-
-Fixed-size text splitting is the single biggest source of retrieval failure in
-code RAG: it cuts functions in half, so the chunk that matches a query often
-does not contain the logic that answers it. RepoSage instead parses each file
-with tree-sitter and emits one chunk per declaration, so a retrieved chunk is
-always a complete, compilable unit with a name and a line range.
-
-Three refinements matter in practice:
-
-1. **Context enrichment.** Every chunk is prefixed with a deterministic header
-   naming its file, language and enclosing symbol. This recovers most of the
-   benefit of LLM-generated contextual retrieval at zero token cost.
-2. **Container splitting.** A 900-line class is not a useful retrieval unit, so
-   large containers are split per method and additionally summarised as a
-   skeleton chunk that lists the members, which is what "what does this class
-   do?" style questions actually need.
-3. **Graceful degradation.** If a grammar is unavailable the file falls back to
-   structure-aware line chunking that prefers blank-line and dedent boundaries,
-   so the pipeline never hard-fails on an unfamiliar language.
-"""
-
 from __future__ import annotations
 
 import re
@@ -38,16 +16,12 @@ _MAX_CONTEXT_IMPORT_LINES = 12
 
 
 def _body_chars(content: str) -> int:
-    """Length of a chunk excluding the deterministic context header."""
     body = [
         line for line in content.splitlines() if not line.startswith(("// file:", "// imports:"))
     ]
     return len("\n".join(body).strip())
 
 
-# Grammar registry. Each entry is (pip module, factory attribute). These wheels
-# ship a pre-compiled grammar, so there is no build step and no network access at
-# runtime, which matters for reproducible container builds and offline CI.
 _GRAMMARS: dict[str, tuple[str, str]] = {
     "python": ("tree_sitter_python", "language"),
     "javascript": ("tree_sitter_javascript", "language"),
@@ -67,11 +41,6 @@ _GRAMMARS: dict[str, tuple[str, str]] = {
 
 @lru_cache(maxsize=32)
 def _get_parser(language: str) -> Any | None:
-    """Load and memoise a tree-sitter parser, or return ``None`` if unavailable.
-
-    Grammars are optional: the package installs fine without them and chunking
-    degrades to the structural line splitter rather than failing.
-    """
     entry = _GRAMMARS.get(language)
     if entry is None:
         return None
@@ -79,26 +48,24 @@ def _get_parser(language: str) -> Any | None:
     try:
         import importlib
 
-        from tree_sitter import Language, Parser  # type: ignore[import-not-found]
+        from tree_sitter import Language, Parser
 
         module = importlib.import_module(module_name)
         return Parser(Language(getattr(module, factory)()))
-    except Exception as exc:  # pragma: no cover - depends on optional extra
+    except Exception as exc:
         log.debug("chunker.parser_unavailable", language=language, error=str(exc)[:140])
         return None
 
 
 def treesitter_available() -> bool:
-    """True when at least one grammar can actually be loaded."""
     try:
-        import tree_sitter  # noqa: F401
+        import tree_sitter
     except ImportError:
         return False
     return _get_parser("python") is not None
 
 
 def available_grammars() -> list[str]:
-    """Languages with a working grammar in this environment."""
     return sorted(name for name in _GRAMMARS if _get_parser(name) is not None)
 
 
@@ -146,8 +113,6 @@ _IDENTIFIER_TYPES = {
 
 @dataclass(slots=True)
 class ChunkingStats:
-    """Reported after ingestion so index quality is observable, not assumed."""
-
     files: int = 0
     chunks: int = 0
     ast_files: int = 0
@@ -170,14 +135,11 @@ class ChunkingStats:
 
 
 class ASTChunker:
-    """Turns a source file into semantically coherent, line-addressed chunks."""
-
     def __init__(self, max_lines: int = 120, overlap_lines: int = 15) -> None:
         self.max_lines = max(20, max_lines)
         self.overlap_lines = max(0, min(overlap_lines, self.max_lines // 2))
         self.stats = ChunkingStats()
 
-    # ------------------------------------------------------------ public API
     def chunk(self, rel_path: str, content: str, spec: LanguageSpec | None = None) -> list[Chunk]:
         spec = spec or get_spec(rel_path)
         self.stats.files += 1
@@ -193,7 +155,7 @@ class ASTChunker:
                     try:
                         chunks = self._chunk_with_ast(rel_path, content, spec, parser)
                         self.stats.ast_files += 1
-                    except Exception as exc:  # pragma: no cover - grammar edge cases
+                    except Exception as exc:
                         log.debug("chunker.ast_failed", path=rel_path, error=str(exc)[:160])
                         chunks = []
             if not chunks:
@@ -204,7 +166,6 @@ class ASTChunker:
         self.stats.chunks += len(chunks)
         return chunks
 
-    # -------------------------------------------------------------- ast path
     def _chunk_with_ast(
         self, rel_path: str, content: str, spec: LanguageSpec, parser: Any
     ) -> list[Chunk]:
@@ -265,7 +226,6 @@ class ASTChunker:
         kind: ChunkKind,
         header: str,
     ) -> list[Chunk]:
-        """Emit one chunk per member plus a skeleton describing the container."""
         members: list[Any] = []
         stack = list(node.children)
         while stack:
@@ -330,16 +290,15 @@ class ASTChunker:
         return chunks
 
     def _skeleton(self, node: Any, members: list[Any], parent: str | None) -> str:
-        """A compact outline: declaration line, docstring, member signatures."""
         try:
             decl_line = node.text.decode("utf-8", errors="replace").splitlines()[0]
-        except Exception:  # pragma: no cover
+        except Exception:
             return ""
         parts = [decl_line.rstrip()]
         for member in members[:60]:
             try:
                 first = member.text.decode("utf-8", errors="replace").splitlines()[0].strip()
-            except Exception:  # pragma: no cover
+            except Exception:
                 continue
             parts.append(f"    {first}")
         if len(members) > 60:
@@ -347,7 +306,6 @@ class ASTChunker:
         outline = "\n".join(parts)
         return f"# Outline of {parent or 'container'} ({len(members)} members)\n{outline}\n"
 
-    # --------------------------------------------------------- fallback path
     def _chunk_lines(self, rel_path: str, content: str, spec: LanguageSpec) -> list[Chunk]:
         lines = content.splitlines()
         if not lines:
@@ -358,7 +316,6 @@ class ASTChunker:
         )
 
     def _chunk_markdown(self, rel_path: str, content: str, spec: LanguageSpec) -> list[Chunk]:
-        """Split prose on heading boundaries so sections stay intact."""
         lines = content.splitlines()
         if not lines:
             return []
@@ -407,7 +364,6 @@ class ASTChunker:
             )
         return chunks
 
-    # ------------------------------------------------------------- utilities
     def _window(
         self,
         rel_path: str,
@@ -420,7 +376,6 @@ class ASTChunker:
         header: str,
         parent: str | None,
     ) -> list[Chunk]:
-        """Split ``[start, end]`` into overlapping windows on natural boundaries."""
         span = end - start + 1
         if span <= self.max_lines:
             return [self._make(rel_path, lines, start, end, spec, kind, symbol, parent, header)]
@@ -441,7 +396,6 @@ class ASTChunker:
 
     @staticmethod
     def _snap_boundary(lines: list[str], start: int, proposed: int, hard_end: int) -> int:
-        """Prefer to end a window on a blank line or a dedent."""
         window = range(proposed, max(start + 5, proposed - 12), -1)
         for i in window:
             if i >= len(lines) or i > hard_end:
@@ -477,7 +431,6 @@ class ASTChunker:
         )
 
     def _file_context(self, rel_path: str, spec: LanguageSpec, root: Any, lines: list[str]) -> str:
-        """Deterministic per-chunk context header, including the import block."""
         parts = [f"// file: {rel_path} ({spec.name})"]
         if spec.import_nodes:
             imports: list[str] = []
@@ -494,7 +447,6 @@ class ASTChunker:
 
     @staticmethod
     def _unwrap(node: Any) -> Any:
-        """Look through decorators and export wrappers to the real declaration."""
         for _ in range(3):
             if node.type in ("decorated_definition", "export_statement"):
                 inner = [c for c in node.children if c.type in _KIND_BY_NODE]
@@ -509,7 +461,7 @@ class ASTChunker:
         for field in _NAME_FIELDS:
             try:
                 child = node.child_by_field_name(field)
-            except Exception:  # pragma: no cover
+            except Exception:
                 child = None
             if child is not None:
                 text = child.text.decode("utf-8", errors="replace").strip()
@@ -527,14 +479,6 @@ class ASTChunker:
     def _uncovered_ranges(
         total_lines: int, covered: set[int], lines: list[str], merge_gap: int = 4
     ) -> list[tuple[int, int]]:
-        """Line ranges the AST pass did not claim, merged into useful units.
-
-        Module-level code is naturally scattered: a constant here, a logger
-        there, a guard clause at the bottom. Emitting each isolated run as its
-        own chunk would flood the index with two-line fragments that match
-        everything and answer nothing, so nearby runs are merged into a single
-        module-scope chunk.
-        """
         runs: list[tuple[int, int]] = []
         start: int | None = None
         for i in range(total_lines):
@@ -559,5 +503,4 @@ class ASTChunker:
 def chunk_file(
     rel_path: str, content: str, max_lines: int = 120, overlap_lines: int = 15
 ) -> list[Chunk]:
-    """Convenience wrapper for one-off chunking (tests, notebooks, CLI)."""
     return ASTChunker(max_lines=max_lines, overlap_lines=overlap_lines).chunk(rel_path, content)

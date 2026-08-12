@@ -1,20 +1,3 @@
-"""The agent graph.
-
-    plan -> retrieve -> analyse -> critique -> finalise
-                ^                      |
-                +------ refine --------+
-
-The loop is the point. A single-pass RAG system answers whatever the first
-retrieval happened to return; this one drafts an answer, audits it against the
-evidence, and if the audit finds a real gap it issues targeted follow-up queries
-and tries again. The refinement budget is bounded by configuration so a run
-always terminates.
-
-LangGraph provides the state machine, checkpointing hooks and streaming
-plumbing. Nodes stay plain async functions so each one is testable on its own,
-without constructing a graph.
-"""
-
 from __future__ import annotations
 
 from functools import partial
@@ -42,7 +25,6 @@ NODE_FINALISE = "finalise"
 
 
 def route_after_plan(state: AgentState) -> str:
-    """Skip retrieval for questions the repository map already answers."""
     plan = state.get("plan")
     if plan is not None and not plan.needs_retrieval:
         return NODE_ANALYSE
@@ -50,7 +32,6 @@ def route_after_plan(state: AgentState) -> str:
 
 
 def route_after_critique(state: AgentState) -> str:
-    """Loop back for another retrieval round, or finish."""
     critique = state.get("critique")
     if critique is None:
         return NODE_FINALISE
@@ -60,7 +41,6 @@ def route_after_critique(state: AgentState) -> str:
 
 
 def build_graph(deps: AgentDeps) -> Any:
-    """Compile the agent graph with ``deps`` bound into every node."""
     builder = StateGraph(AgentState)
 
     builder.add_node(NODE_PLAN, partial(planner_node, deps=deps))
@@ -90,7 +70,6 @@ def build_graph(deps: AgentDeps) -> Any:
 
 
 def describe_graph() -> str:
-    """Mermaid source for the graph, embedded in the docs and the UI."""
     return """graph TD
     START([question]) --> PLAN[plan<br/>decompose into search queries]
     PLAN -->|needs retrieval| RETRIEVE[retrieve<br/>hybrid search + fusion + rerank]

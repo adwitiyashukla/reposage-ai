@@ -1,5 +1,3 @@
-"""Chunking behaviour: AST alignment, container splitting and fallbacks."""
-
 from __future__ import annotations
 
 import pytest
@@ -67,7 +65,7 @@ def test_markdown_splits_on_headings():
 
 def test_empty_and_trivial_input_is_safe():
     assert chunk_file("empty.py", "") == []
-    assert chunk_file("tiny.py", "x=1") == []  # below the minimum body size
+    assert chunk_file("tiny.py", "x=1") == []
 
 
 def test_chunk_ids_are_deterministic_and_unique():

@@ -1,14 +1,3 @@
-"""The public agent API.
-
-:class:`CodebaseAgent` wraps graph construction, tracing and result assembly so
-callers write three lines rather than thirty. It exposes two shapes:
-
-* :meth:`ask` - await a complete :class:`AgentAnswer`. Used by the CLI, the
-  evaluation harness and the batch API.
-* :meth:`astream` - async-iterate structured events while the run is in flight.
-  Used by the web UI to render the agent's reasoning as it happens.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -32,8 +21,6 @@ _DRAIN_INTERVAL = 0.05
 
 
 class CodebaseAgent:
-    """Answers questions about one indexed repository."""
-
     def __init__(
         self,
         index: RepoIndex,
@@ -47,7 +34,6 @@ class CodebaseAgent:
         self.deps = AgentDeps(client=self.client, retriever=self.retriever, settings=self.settings)
         self.graph = build_graph(self.deps)
 
-    # ------------------------------------------------------------------ ask
     async def ask(
         self,
         question: str,
@@ -55,7 +41,6 @@ class CodebaseAgent:
         stream_tokens: bool = False,
         tracer: Tracer | None = None,
     ) -> AgentAnswer:
-        """Run the full graph and return a complete answer."""
         if not question or not question.strip():
             raise ValueError("question must not be empty")
 
@@ -99,14 +84,7 @@ class CodebaseAgent:
         )
         return answer
 
-    # --------------------------------------------------------------- stream
     async def astream(self, question: str) -> AsyncIterator[dict[str, Any]]:
-        """Yield trace events as the agent works, then a terminal result event.
-
-        The run executes in a background task while this coroutine drains the
-        tracer's event queue, so the caller sees planning, retrieval and tokens
-        arrive live rather than after the fact.
-        """
         tracer = Tracer()
         queue = tracer.subscribe()
 
@@ -141,7 +119,7 @@ class CodebaseAgent:
                     "summary": tracer.summary(),
                 },
             }
-        except Exception as exc:  # pragma: no cover - surfaced to the client
+        except Exception as exc:
             log.exception("agent.stream_failed")
             if not task.done():
                 task.cancel()
@@ -153,9 +131,7 @@ class CodebaseAgent:
         finally:
             tracer.unsubscribe(queue)
 
-    # ----------------------------------------------------------------- misc
     async def batch(self, questions: list[str], concurrency: int = 3) -> list[AgentAnswer]:
-        """Answer several questions with bounded parallelism (used by evals)."""
         semaphore = asyncio.Semaphore(max(1, concurrency))
 
         async def _one(question: str) -> AgentAnswer:

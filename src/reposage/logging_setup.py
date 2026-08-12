@@ -1,9 +1,3 @@
-"""Structured logging.
-
-Human-readable colourised output for local development, single-line JSON in
-containers so logs are directly ingestible by any log aggregator.
-"""
-
 from __future__ import annotations
 
 import contextlib
@@ -16,20 +10,11 @@ _CONFIGURED = False
 
 
 def configure_console_encoding() -> None:
-    """Force UTF-8 on stdout and stderr.
-
-    Windows still defaults a redirected console to the legacy cp1252 code page,
-    so any non-Latin-1 character (a box-drawing glyph from a Rich table, a
-    severity emoji, a stray en dash in a docstring being echoed back) raises
-    UnicodeEncodeError and takes the whole command down. Reconfiguring the
-    streams costs nothing on platforms that were already UTF-8, and turns a
-    crash into a replacement character on the one that was not.
-    """
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
-        if reconfigure is None:  # pragma: no cover - non-standard stream
+        if reconfigure is None:
             continue
-        with contextlib.suppress(ValueError, OSError):  # pragma: no cover
+        with contextlib.suppress(ValueError, OSError):
             reconfigure(encoding="utf-8", errors="replace")
 
 
@@ -74,4 +59,4 @@ def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
 
 
 def get_logger(name: str) -> structlog.stdlib.BoundLogger:
-    return structlog.get_logger(name)  # type: ignore[return-value]
+    return structlog.get_logger(name)

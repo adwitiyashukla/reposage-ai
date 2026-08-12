@@ -1,5 +1,3 @@
-"""Analysis node: turn retrieved code into a grounded, cited draft answer."""
-
 from __future__ import annotations
 
 from reposage.agents.prompts import ANALYST_SYSTEM, ANALYST_USER, format_context
@@ -12,20 +10,11 @@ log = get_logger(__name__)
 
 
 async def analyst_node(state: AgentState, deps: AgentDeps) -> dict:
-    """Write the answer from retrieved context only.
-
-    Two generation modes share one prompt. Interactive callers stream tokens so
-    the UI can render the answer as it is written; batch callers (CLI,
-    evaluation) use the cached completion path, which makes reruns free and
-    keeps eval scores reproducible.
-    """
     tracer = current_tracer()
     retrieved = state.get("retrieved") or []
 
     plan = state.get("plan")
     if not retrieved:
-        # Structural questions ("how many services are there?") are answerable
-        # from the repository map alone, and the planner marks them as such.
         if plan is not None and not plan.needs_retrieval and state.get("repo_map"):
             return await _answer_from_map(state, deps)
         return {
@@ -87,7 +76,6 @@ async def analyst_node(state: AgentState, deps: AgentDeps) -> dict:
 
 
 async def _answer_from_map(state: AgentState, deps: AgentDeps) -> dict:
-    """Answer a structural question directly from the repository map."""
     response = await deps.client.complete(
         f"Repository: {state.get('repo_name')}\n\n{state.get('repo_map', '')[:20_000]}\n\n"
         f"Question: {state['question']}\n\n"

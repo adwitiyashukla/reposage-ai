@@ -1,5 +1,3 @@
-"""Pull-request review endpoints."""
-
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
@@ -17,7 +15,6 @@ router = APIRouter(tags=["review"])
 
 @router.post("/review", response_model=ReviewResponse, summary="Review a unified diff")
 async def review(request: ReviewRequest) -> ReviewResponse:
-    """Review a diff, optionally grounded in an indexed repository."""
     state = get_state()
     if not state.settings.has_api_key:
         raise HTTPException(status_code=503, detail="GEMINI_API_KEY is not configured")

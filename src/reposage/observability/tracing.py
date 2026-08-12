@@ -1,15 +1,3 @@
-"""Lightweight, dependency-free tracing for agent runs.
-
-Every meaningful operation opens a :class:`Span`. Spans nest, carry arbitrary
-attributes, and record token usage, so a completed run yields both a waterfall
-timeline and an exact cost breakdown. Subscribers can attach to a tracer to
-receive events as they happen, which is what powers the live UI stream.
-
-This is deliberately not OpenTelemetry: OTel would add a heavy dependency and a
-collector to run, and we only need in-process, single-run visibility. The event
-schema is intentionally OTel-shaped so exporting later is a small change.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -37,8 +25,6 @@ class EventType(str, Enum):
 
 @dataclass(slots=True)
 class TraceEvent:
-    """A single point-in-time record in a run's timeline."""
-
     type: EventType
     name: str
     timestamp: float = field(default_factory=time.time)
@@ -63,8 +49,6 @@ class TraceEvent:
 
 @dataclass
 class Span:
-    """A timed unit of work."""
-
     name: str
     span_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
     parent_id: str | None = None
@@ -83,12 +67,6 @@ class Span:
 
 
 class Tracer:
-    """Collects spans and usage for one logical run.
-
-    A tracer is cheap: create one per request. Attach subscribers to stream
-    events to a websocket or SSE channel while the run is still in flight.
-    """
-
     def __init__(self, run_id: str | None = None) -> None:
         self.run_id = run_id or uuid.uuid4().hex[:12]
         self.events: list[TraceEvent] = []
@@ -98,7 +76,6 @@ class Tracer:
         self._subscribers: list[asyncio.Queue] = []
         self._started = time.perf_counter()
 
-    # ------------------------------------------------------------- streaming
     def subscribe(self) -> asyncio.Queue:
         queue: asyncio.Queue = asyncio.Queue(maxsize=1000)
         self._subscribers.append(queue)
@@ -111,12 +88,9 @@ class Tracer:
     def _emit(self, event: TraceEvent) -> None:
         self.events.append(event)
         for queue in list(self._subscribers):
-            # A subscriber that cannot keep up loses events rather than
-            # blocking the run that is producing them.
             with contextlib.suppress(asyncio.QueueFull):
                 queue.put_nowait(event)
 
-    # ----------------------------------------------------------------- spans
     @contextmanager
     def span(self, name: str, **attributes: Any) -> Iterator[Span]:
         parent = self._stack[-1] if self._stack else None
@@ -169,7 +143,6 @@ class Tracer:
                 )
             )
 
-    # ------------------------------------------------------------- reporting
     def log(self, message: str, **attributes: Any) -> None:
         parent = self._stack[-1] if self._stack else None
         self._emit(
@@ -184,7 +157,6 @@ class Tracer:
         )
 
     def token(self, text: str) -> None:
-        """Stream a partial generation token to subscribers."""
         self._emit(TraceEvent(type=EventType.TOKEN, name="token", attributes={"text": text}))
 
     def result(self, payload: dict[str, Any]) -> None:
@@ -198,7 +170,6 @@ class Tracer:
         return time.perf_counter() - self._started
 
     def waterfall(self) -> list[dict[str, Any]]:
-        """Flat, ordered view of the run suitable for rendering a timeline."""
         return [
             {
                 "name": s.name,
@@ -235,13 +206,11 @@ _current: contextvars.ContextVar[Tracer] = contextvars.ContextVar("reposage_trac
 
 
 def current_tracer() -> Tracer:
-    """The tracer bound to the current execution context."""
     return _current.get()
 
 
 @contextmanager
 def use_tracer(tracer: Tracer) -> Iterator[Tracer]:
-    """Bind ``tracer`` for the duration of the block."""
     token = _current.set(tracer)
     try:
         yield tracer

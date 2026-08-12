@@ -1,16 +1,7 @@
-"""Every prompt the system uses, in one place.
-
-Prompts are the highest-leverage and most frequently changed part of an LLM
-system. Centralising them keeps behaviour reviewable in a diff, lets the
-evaluation harness pin an exact prompt revision to a score, and prevents the
-same instruction drifting into three slightly different copies.
-"""
-
 from __future__ import annotations
 
 PROMPT_VERSION = "2026.08.1"
 
-# ---------------------------------------------------------------- planner ---
 
 PLANNER_SYSTEM = """You are the planning stage of a code-intelligence system.
 
@@ -52,8 +43,6 @@ Developer question:
 Produce the retrieval plan."""
 
 
-# --------------------------------------------------------------- analyst ---
-
 ANALYST_SYSTEM = """You are a senior engineer explaining an unfamiliar codebase to a colleague.
 
 You are given code retrieved from the repository. Answer strictly from it.
@@ -88,8 +77,6 @@ Question:
 
 Answer the question, citing every claim as [path:start-end]."""
 
-
-# ---------------------------------------------------------------- critic ---
 
 CRITIC_SYSTEM = """You audit draft answers about source code for grounding and completeness.
 
@@ -127,8 +114,6 @@ Draft answer:
 
 Audit the draft."""
 
-
-# --------------------------------------------------------------- reviewer ---
 
 REVIEWER_SYSTEM = """You are a staff engineer reviewing a pull request.
 
@@ -188,11 +173,7 @@ wrong, say so directly and briefly. No preamble, no bullet lists, no praise
 padding."""
 
 
-# ------------------------------------------------------------------ misc ---
-
-
 def format_context(chunks: list, max_chars: int = 90_000) -> str:
-    """Render retrieved chunks into a numbered, cite-able context block."""
     parts: list[str] = []
     used = 0
     for i, scored in enumerate(chunks, start=1):
@@ -213,7 +194,6 @@ def format_context(chunks: list, max_chars: int = 90_000) -> str:
 
 
 def format_context_summary(chunks: list, limit: int = 40) -> str:
-    """A compact index of what was retrieved, for the critic."""
     lines: list[str] = []
     for i, scored in enumerate(chunks[:limit], start=1):
         chunk = getattr(scored, "chunk", scored)

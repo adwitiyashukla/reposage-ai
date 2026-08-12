@@ -1,10 +1,3 @@
-"""Provider-agnostic contracts.
-
-Everything above this module talks to :class:`LLMProvider`, never to a vendor
-SDK. Swapping Gemini for Groq, OpenRouter or a local Ollama server is a
-configuration change, not a code change.
-"""
-
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -13,35 +6,31 @@ from typing import Any, Protocol, runtime_checkable
 
 
 class LLMError(RuntimeError):
-    """Base class for provider failures."""
+    pass
 
 
 class TransientLLMError(LLMError):
-    """Retryable failure: timeout, 5xx, connection reset."""
+    pass
 
 
 class RateLimitError(TransientLLMError):
-    """429 from the provider. Retried with a longer backoff."""
-
     def __init__(self, message: str, retry_after: float | None = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
 
 
 class ContentBlockedError(LLMError):
-    """The provider refused to answer. Not retryable."""
+    pass
 
 
 @dataclass(slots=True)
 class Message:
-    role: str  # "user" | "model"
+    role: str
     content: str
 
 
 @dataclass(slots=True)
 class LLMResponse:
-    """A completed generation with usage attached."""
-
     text: str
     model: str
     prompt_tokens: int = 0
@@ -58,8 +47,6 @@ class LLMResponse:
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """Minimal surface every provider must implement."""
-
     name: str
 
     async def generate(

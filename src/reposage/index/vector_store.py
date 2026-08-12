@@ -1,19 +1,3 @@
-"""Dense vector storage and search.
-
-The default implementation is exact (brute-force) cosine search over a single
-contiguous float32 matrix. That is a considered choice, not a shortcut:
-
-* a 4,000-file repository produces roughly 30k-80k chunks, and an exact
-  NumPy matmul over 80k x 768 floats completes in a few milliseconds,
-* exact search has perfect recall, so retrieval-quality regressions can never
-  be blamed on an approximate index,
-* it adds zero dependencies and no separate service to run.
-
-Beyond a few hundred thousand chunks an ANN index becomes worthwhile, which is
-why everything is written against the :class:`VectorStore` protocol. Swapping in
-FAISS, LanceDB or pgvector means adding one class, not editing callers.
-"""
-
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,8 +12,6 @@ log = get_logger(__name__)
 
 @runtime_checkable
 class VectorStore(Protocol):
-    """Minimal contract for any dense index."""
-
     def add(self, ids: list[str], vectors: np.ndarray) -> None: ...
 
     def search(self, query: np.ndarray, k: int) -> list[tuple[str, float]]: ...
@@ -43,18 +25,14 @@ class VectorStore(Protocol):
 
 
 def _l2_normalise(matrix: np.ndarray) -> np.ndarray:
-    """Unit-normalise rows so cosine similarity reduces to a dot product."""
     norms = np.linalg.norm(matrix, axis=1, keepdims=True)
     np.maximum(norms, 1e-12, out=norms)
     return matrix / norms
 
 
 class NumpyVectorStore:
-    """Exact cosine-similarity search over an in-memory float32 matrix."""
-
     VECTORS_FILE = "vectors.npy"
     IDS_FILE = "vector_ids.txt"
-    # Indexes written before the format dropped pickled object arrays.
     LEGACY_IDS_FILE = "vector_ids.npy"
 
     def __init__(self, dim: int | None = None) -> None:
@@ -62,7 +40,6 @@ class NumpyVectorStore:
         self._ids: list[str] = []
         self._matrix: np.ndarray | None = None
 
-    # -------------------------------------------------------------- mutation
     def add(self, ids: list[str], vectors: np.ndarray) -> None:
         if len(ids) != len(vectors):
             raise ValueError(f"id/vector length mismatch: {len(ids)} vs {len(vectors)}")
@@ -80,9 +57,7 @@ class NumpyVectorStore:
         self._matrix = matrix if self._matrix is None else np.vstack([self._matrix, matrix])
         self._ids.extend(ids)
 
-    # --------------------------------------------------------------- queries
     def search(self, query: np.ndarray, k: int) -> list[tuple[str, float]]:
-        """Top-``k`` ``(chunk_id, cosine_similarity)`` pairs, best first."""
         if self._matrix is None or not self._ids:
             return []
         vector = np.asarray(query, dtype=np.float32).reshape(-1)
@@ -96,13 +71,11 @@ class NumpyVectorStore:
         k = min(k, scores.shape[0])
         if k <= 0:
             return []
-        # argpartition is O(n); a full sort of the whole corpus would not be.
         top = np.argpartition(-scores, k - 1)[:k]
         top = top[np.argsort(-scores[top])]
         return [(self._ids[int(i)], float(scores[int(i)])) for i in top]
 
     def search_many(self, queries: np.ndarray, k: int) -> list[list[tuple[str, float]]]:
-        """Batched search: one matmul for every query at once."""
         if self._matrix is None or not self._ids:
             return [[] for _ in range(len(queries))]
         batch = _l2_normalise(np.asarray(queries, dtype=np.float32))
@@ -115,17 +88,7 @@ class NumpyVectorStore:
             results.append([(self._ids[int(i)], float(row[int(i)])) for i in top])
         return results
 
-    # ----------------------------------------------------------- persistence
     def save(self, directory: Path) -> None:
-        """Persist the matrix and its row labels.
-
-        Ids are written as newline-delimited text rather than an object-dtype
-        ``.npy``. An object array can only be read back by unpickling, which
-        makes loading an index equivalent to executing whatever produced it, and
-        an index is exactly the kind of artefact people copy between machines
-        and bake into container images. Chunk ids are short hex strings, so text
-        costs nothing and the format stays inspectable with ``cat``.
-        """
         directory.mkdir(parents=True, exist_ok=True)
         if self._matrix is None:
             return
@@ -148,14 +111,11 @@ class NumpyVectorStore:
         if ids_path.exists():
             store._ids = ids_path.read_text(encoding="utf-8").splitlines()
         else:
-            # Older index written before the text format. Read it once so it can
-            # be re-saved without pickle rather than forcing a full re-index.
             store._ids = [str(i) for i in np.load(legacy_path, allow_pickle=True).tolist()]
             log.info("vector_store.legacy_ids", path=str(legacy_path))
         store.dim = int(matrix.shape[1]) if matrix.size else None
         return store
 
-    # ------------------------------------------------------------ introspect
     def __len__(self) -> int:
         return len(self._ids)
 

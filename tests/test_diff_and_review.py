@@ -1,5 +1,3 @@
-"""Unified diff parsing and review finding validation."""
-
 from __future__ import annotations
 
 import pytest

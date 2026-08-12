@@ -1,14 +1,5 @@
 name: Keep the demo warm
 
-# Hugging Face pauses a free cpu-basic Space after 48 hours without traffic.
-# A paused Space is not broken: the next visitor wakes it automatically. But
-# waking takes a little while, and the one visitor most likely to arrive cold is
-# a recruiter following a link from a CV, which is the worst possible moment for
-# a loading screen.
-#
-# One request every 12 hours keeps it resident. /api/health is deliberate: it
-# reports version and configuration without touching the model, so this costs
-# nothing in API quota.
 on:
   schedule:
     - cron: "0 */12 * * *"
@@ -26,8 +17,6 @@ jobs:
         env:
           SPACE_URL: https://adwitiyashukla-reposage.hf.space
         run: |
-          # A cold Space can take a while to start, so retry rather than fail on
-          # the first slow response.
           for attempt in 1 2 3 4 5 6; do
             if body=$(curl -fsS --max-time 90 "${SPACE_URL}/api/health"); then
               echo "Space responded on attempt ${attempt}."
@@ -39,5 +28,4 @@ jobs:
             sleep 30
           done
           echo "::warning::The Space did not respond after 6 attempts. It may be paused or rebuilding."
-          # A missed ping is not worth a failing badge on the repository.
           exit 0

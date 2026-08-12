@@ -1,5 +1,3 @@
-"""Tracing, metrics and cost accounting."""
-
 from reposage.observability.tracing import (
     EventType,
     Span,

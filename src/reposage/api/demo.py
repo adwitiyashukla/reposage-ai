@@ -1,24 +1,3 @@
-"""Public demo guardrails.
-
-A hosted demo runs on the maintainer's API key, which means anyone who finds the
-URL can spend it. The free tier is finite, so an unguarded demo is one crawler
-away from being permanently broken, which is worse than having no demo at all.
-
-Three mechanisms, in order of how much they matter:
-
-1. **A global daily budget.** The shared key answers a bounded number of
-   questions per UTC day. This is the backstop that makes the worst case
-   survivable.
-2. **A per-visitor budget.** A sliding hourly window per visitor stops one
-   person consuming the whole day in a minute, without needing accounts.
-3. **Bring-your-own-key.** When the shared budget is spent the demo does not
-   simply break: visitors can supply their own key and continue, and those
-   requests bypass the budget entirely because they cost the host nothing.
-
-State is in-process and deliberately so. A demo runs as a single container, and
-adding Redis to rate-limit a portfolio demo would be architecture theatre.
-"""
-
 from __future__ import annotations
 
 import hashlib
@@ -34,24 +13,19 @@ log = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class BudgetDecision:
-    """Outcome of a budget check, including why it was refused."""
-
     allowed: bool
     reason: str = ""
-    scope: str = ""  # "global" | "visitor"
+    scope: str = ""
     remaining_today: int = 0
     remaining_for_visitor: int = 0
     retry_after_seconds: int = 0
 
     @property
     def needs_own_key(self) -> bool:
-        """A spent global budget is the case a visitor can fix with their key."""
         return not self.allowed and self.scope == "global"
 
 
 class DemoBudget:
-    """Global daily and per-visitor hourly limits for the shared key."""
-
     def __init__(
         self, daily_limit: int = 200, visitor_limit: int = 5, window_seconds: int = 3600
     ) -> None:
@@ -83,9 +57,7 @@ class DemoBudget:
             history.popleft()
         return history
 
-    # ------------------------------------------------------------------ API
     def check(self, visitor: str) -> BudgetDecision:
-        """Test whether ``visitor`` may spend one unit of the shared budget."""
         self._roll_day()
         now = time.time()
         history = self._prune(visitor, now)
@@ -127,16 +99,14 @@ class DemoBudget:
         )
 
     def consume(self, visitor: str) -> None:
-        """Record one answered question against the shared budget."""
         self._roll_day()
         self._used_today += 1
         self.total_served += 1
         self._visitors[visitor].append(time.time())
-        if len(self._visitors) > 5000:  # bound memory on a long-running demo
+        if len(self._visitors) > 5000:
             self._evict_stale()
 
     def record_own_key(self) -> None:
-        """A request served on a visitor's own key costs the host nothing."""
         self.byo_key_requests += 1
 
     def _evict_stale(self) -> None:
@@ -166,11 +136,6 @@ def _seconds_until_utc_midnight() -> int:
 
 
 def visitor_id(client_host: str | None, forwarded_for: str | None, user_agent: str | None) -> str:
-    """A stable, non-identifying handle for one visitor.
-
-    Behind a proxy the real address is the first entry of X-Forwarded-For.
-    The result is hashed because a demo has no business retaining raw IPs.
-    """
     address = (forwarded_for or "").split(",")[0].strip() or (client_host or "unknown")
     digest = hashlib.sha256(f"{address}|{(user_agent or '')[:120]}".encode()).hexdigest()
     return digest[:20]

@@ -1,10 +1,3 @@
-"""Language detection and per-language parsing metadata.
-
-Extension mapping is deliberate rather than heuristic: guessing wrongly sends a
-file to the wrong tree-sitter grammar, which silently degrades chunk quality
-across the whole index.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,15 +6,10 @@ from pathlib import Path
 
 @dataclass(frozen=True, slots=True)
 class LanguageSpec:
-    """How to treat one language during chunking."""
-
     name: str
     tree_sitter: str | None
-    # Node types that represent a self-contained, retrievable declaration.
     declaration_nodes: tuple[str, ...] = ()
-    # Node types that carry file-level context worth prepending to every chunk.
     import_nodes: tuple[str, ...] = ()
-    # Node types whose children should be split individually when too large.
     container_nodes: tuple[str, ...] = ()
     is_code: bool = True
 
@@ -163,7 +151,6 @@ LANGUAGES: dict[str, LanguageSpec] = {
     ".dart": LanguageSpec("dart", None),
     ".vue": LanguageSpec("vue", None),
     ".svelte": LanguageSpec("svelte", None),
-    # Structured, non-code files still carry architectural signal.
     ".md": LanguageSpec("markdown", None, is_code=False),
     ".mdx": LanguageSpec("markdown", None, is_code=False),
     ".rst": LanguageSpec("rst", None, is_code=False),
@@ -183,7 +170,6 @@ LANGUAGES: dict[str, LanguageSpec] = {
     ".tf": LanguageSpec("terraform", None, is_code=False),
 }
 
-# Extension-less files that matter for understanding how a project is built.
 SPECIAL_FILENAMES: dict[str, LanguageSpec] = {
     "dockerfile": LanguageSpec("dockerfile", None, is_code=False),
     "makefile": LanguageSpec("make", None, is_code=False),
@@ -199,7 +185,6 @@ _UNKNOWN = LanguageSpec("text", None, is_code=False)
 
 
 def get_spec(path: str | Path) -> LanguageSpec:
-    """Resolve a path to its language spec, falling back to plain text."""
     p = Path(path)
     name = p.name.lower()
     if name in SPECIAL_FILENAMES:

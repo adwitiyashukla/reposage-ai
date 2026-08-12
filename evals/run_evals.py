@@ -1,13 +1,3 @@
-"""Evaluation entry point.
-
-    python -m evals.run_evals --repo reposage
-    python -m evals.run_evals --repo reposage --no-judge --min-recall 0.6
-
-Exit codes make this usable as a CI gate: a run that falls below the thresholds
-passed on the command line exits non-zero, so a pull request that degrades
-retrieval quality fails before it is merged.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -142,7 +132,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def run_cli(repo: str, dataset: Path | None, limit: int | None, output: Path | None) -> None:
-    """Entry point used by ``reposage eval``."""
     argv = ["--repo", repo]
     if dataset:
         argv += ["--dataset", str(dataset)]
@@ -153,5 +142,5 @@ def run_cli(repo: str, dataset: Path | None, limit: int | None, output: Path | N
     raise SystemExit(main(argv))
 
 
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     sys.exit(main())

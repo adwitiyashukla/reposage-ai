@@ -1,5 +1,3 @@
-"""Ingestion, index persistence and the end-to-end agent graph."""
-
 from __future__ import annotations
 
 import pytest
@@ -137,7 +135,6 @@ class TestAgentEndToEnd:
         tracer = Tracer()
         with use_tracer(tracer):
             answer = await agent.ask("How does token validation work?", tracer=tracer)
-        # The fake model always emits one citation to a file that does not exist.
         assert all(c.path != "does/not/exist.py" for c in answer.citations)
         assert answer.confidence < 1.0
 
@@ -163,9 +160,6 @@ class TestAgentEndToEnd:
 
 
 class TestConfidenceCalibration:
-    """The critic frequently returns 1.0. An answer assembled from a partial
-    view of a codebase is never certain, so the reported score must not be."""
-
     def test_confidence_never_reaches_certainty(self):
         from reposage.agents.nodes.finalizer import _CONFIDENCE_CEILING, _score
         from reposage.models import Citation, Critique
@@ -203,10 +197,6 @@ class TestConfidenceCalibration:
 
 
 class TestCitationParsing:
-    """Models group references far more than the prompt asks them to, and the
-    grouped forms carry the most evidence. Matching only the simple form threw
-    away roughly half the citations on a real answer."""
-
     def test_single_reference(self):
         from reposage.agents.nodes.finalizer import parse_citation_markers
 
@@ -239,7 +229,6 @@ class TestCitationParsing:
         assert parse_citation_markers("[see below, line 4]") == []
 
     def test_a_bare_range_cannot_inherit_across_prose(self):
-        """Otherwise '[a.py:1-2] ... [note, 40-50]' would invent a citation."""
         from reposage.agents.nodes.finalizer import parse_citation_markers
 
         found = parse_citation_markers("[src/a.py:1-2] and later [note, 40-50]")
@@ -251,8 +240,6 @@ class TestCitationParsing:
         assert parse_citation_markers("[src/a.py:48-12]") == [("src/a.py", 12, 48)]
 
     def test_invalid_citations_are_penalised_proportionally(self):
-        """Two bad citations among twenty good ones should not read as less
-        trustworthy than none among ten."""
         from reposage.agents.nodes.finalizer import _score
         from reposage.models import Citation, Critique
 

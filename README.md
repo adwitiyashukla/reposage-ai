@@ -8,11 +8,11 @@ Index a codebase with AST-aware chunking, retrieve over it with hybrid search,
 and answer architectural questions with verified line-level citations.
 Then let it review your pull requests.
 
-### [▶ Try the live demo](https://huggingface.co/spaces/adwitiyashukla/reposage)
+### [Try the live demo](https://huggingface.co/spaces/adwitiyashukla/reposage)
 
 <sub>Running against its own source code, pre-indexed. No signup, no setup.</sub>
 
-[![Live demo](https://img.shields.io/badge/%F0%9F%A4%97%20demo-live%20on%20Spaces-yellow)](https://huggingface.co/spaces/adwitiyashukla/reposage)
+[![Live demo](https://img.shields.io/badge/demo-live%20on%20Spaces-yellow)](https://huggingface.co/spaces/adwitiyashukla/reposage)
 [![CI](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/adwitiyashukla/reposage-ai/actions/workflows/ci.yml)
 [![Evaluation report](https://img.shields.io/badge/evaluation-report-blue)](evals/REPORT.md)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)

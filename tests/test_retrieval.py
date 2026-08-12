@@ -1,5 +1,3 @@
-"""Lexical index, vector store and rank fusion."""
-
 from __future__ import annotations
 
 import numpy as np
@@ -131,10 +129,6 @@ class TestFusion:
 
 
 class TestVectorStorePersistenceFormat:
-    """An index gets copied between machines and baked into container images.
-    If loading one requires unpickling, loading an index is equivalent to
-    executing whatever produced it."""
-
     def test_ids_are_stored_as_plain_text(self, tmp_path):
         store = NumpyVectorStore()
         store.add(["alpha", "beta"], np.eye(2, dtype=np.float32))
@@ -147,12 +141,9 @@ class TestVectorStorePersistenceFormat:
         store.add(["a"], np.zeros((1, 4), dtype=np.float32))
         store.save(tmp_path)
         for npy in tmp_path.glob("*.npy"):
-            # Loading without allow_pickle must succeed for every array we write.
             np.load(npy)
 
     def test_legacy_pickled_ids_still_load(self, tmp_path):
-        """Existing indexes must keep working rather than forcing a re-index,
-        which costs real money in embedding calls."""
         vectors = np.eye(3, dtype=np.float32)
         np.save(tmp_path / NumpyVectorStore.VECTORS_FILE, vectors)
         np.save(

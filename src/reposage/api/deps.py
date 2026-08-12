@@ -1,11 +1,3 @@
-"""Shared application state.
-
-Indexes are expensive to load (a NumPy matrix plus BM25 postings) and entirely
-read-only once built, so they are cached per process behind a lock. Without the
-lock two concurrent first-requests for the same repository would each pay the
-full load cost.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -24,8 +16,6 @@ log = get_logger(__name__)
 
 
 class AppState:
-    """Process-wide resources shared across requests."""
-
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self._client: LLMClient | None = None
@@ -36,18 +26,10 @@ class AppState:
             daily_limit=self.settings.demo_daily_budget,
             visitor_limit=self.settings.demo_visitor_budget,
         )
-        # Clients built from visitor-supplied keys, capped so a hostile
-        # caller cannot grow the pool without bound.
         self._byo: dict[str, LLMClient] = {}
 
     @property
     def client(self) -> LLMClient:
-        """Construct the model client on first use.
-
-        Deferring this lets the server start without credentials and serve the
-        UI, the docs and ``/api/health`` in a degraded state, which is far more
-        useful to a first-time user than a crash on boot.
-        """
         if self._client is None:
             self._client = get_client(self.settings)
         return self._client
@@ -69,12 +51,6 @@ class AppState:
             return self._agents[name]
 
     def client_for_key(self, api_key: str) -> LLMClient:
-        """A client bound to a visitor's own key.
-
-        Requests on a visitor's key cost the host nothing, so they bypass the
-        shared budget entirely. Clients are pooled by key digest to avoid
-        building a fresh HTTP connection pool per request.
-        """
         digest = hashlib.sha256(api_key.encode()).hexdigest()[:16]
         if digest not in self._byo:
             if len(self._byo) >= 32:
@@ -86,7 +62,6 @@ class AppState:
         return self._byo[digest]
 
     def register(self, index: RepoIndex) -> None:
-        """Make a freshly built index available without a reload."""
         self._indexes[index.index_id] = index
         self._agents.pop(index.index_id, None)
 

@@ -1,5 +1,3 @@
-"""Critique node: audit the draft for hallucination and gaps."""
-
 from __future__ import annotations
 
 from reposage.agents.prompts import CRITIC_SYSTEM, CRITIC_USER, format_context_summary
@@ -13,13 +11,6 @@ log = get_logger(__name__)
 
 
 async def critic_node(state: AgentState, deps: AgentDeps) -> dict:
-    """Judge the draft and decide whether another retrieval round is warranted.
-
-    This is the system's main defence against confident wrong answers. The critic
-    sees a compact index of what was actually retrieved rather than the full
-    context, which keeps the check cheap and, usefully, makes it harder for the
-    critic to be seduced by the same text that misled the analyst.
-    """
     tracer = current_tracer()
     draft = state.get("draft", "")
     if not draft or not deps.settings.enable_critic:

@@ -1,20 +1,3 @@
-"""The evaluation runner.
-
-Two things happen here.
-
-**Retrieval ablation.** The same golden questions are run through progressively
-richer retrieval configurations, using the production code path rather than a
-reimplementation. That turns "hybrid search and reranking help" from a claim
-into a measurement, and it localises regressions: if recall drops after a
-chunker change, the ablation shows whether the loss is in dense recall, lexical
-recall, or the reranker's ordering.
-
-**Answer evaluation.** The full agent answers each question and the result is
-scored on grounded metrics (citation validity, required-fact coverage) and by an
-LLM judge. Cost and latency are recorded per case, because an accuracy win that
-triples the bill is a trade-off, not an improvement.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -47,8 +30,6 @@ log = get_logger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Variant:
-    """One retrieval configuration in the ablation."""
-
     name: str
     mode: str = "hybrid"
     rerank: bool = False
@@ -104,8 +85,6 @@ class AnswerResult:
 
 @dataclass
 class EvalReport:
-    """Everything one evaluation run produced."""
-
     repo: str
     generated_at: str
     prompt_version: str
@@ -133,8 +112,6 @@ class EvalReport:
 
 
 class EvalRunner:
-    """Runs the ablation and the answer suite against one index."""
-
     def __init__(
         self,
         index: RepoIndex,
@@ -147,11 +124,9 @@ class EvalRunner:
         self.retriever = HybridRetriever(index, client, self.settings)
         self.indexed_paths = set(index.paths())
 
-    # ------------------------------------------------------------- ablation
     async def run_ablation(
         self, cases: list[EvalCase], variants: tuple[Variant, ...] = ABLATION
     ) -> list[VariantResult]:
-        """Score each retrieval configuration over the whole dataset."""
         results: list[VariantResult] = []
         for variant in variants:
             tracer = Tracer()
@@ -202,11 +177,9 @@ class EvalRunner:
             )
         return results
 
-    # --------------------------------------------------------------- answers
     async def run_answers(
         self, cases: list[EvalCase], *, judge: bool = True, concurrency: int = 1
     ) -> list[AnswerResult]:
-        """Answer every case with the full agent and score the results."""
         agent = CodebaseAgent(self.index, self.client, self.settings)
         semaphore = asyncio.Semaphore(max(1, concurrency))
 
@@ -260,7 +233,6 @@ class EvalRunner:
 
         return await asyncio.gather(*(_one(case) for case in cases))
 
-    # ------------------------------------------------------------------ all
     async def run(
         self, cases: list[EvalCase], *, ablation: bool = True, judge: bool = True
     ) -> EvalReport:
@@ -291,7 +263,6 @@ class EvalRunner:
 
 
 def summarise(report: EvalReport) -> dict[str, Any]:
-    """Headline numbers, including the lift the full pipeline gives over naive RAG."""
     answers = [a for a in report.answers if not a.error]
     judged = [a for a in answers if a.judge]
 

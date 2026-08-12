@@ -1,8 +1,5 @@
 name: Evaluation
 
-# Quality gate for retrieval and answer quality. This costs API tokens, so it
-# runs on demand, on a weekly schedule, and on pull requests that touch the
-# retrieval or agent code rather than on every push.
 on:
   workflow_dispatch:
     inputs:
@@ -27,8 +24,6 @@ jobs:
   evaluate:
     name: Retrieval and answer quality
     runs-on: ubuntu-latest
-    # Without a key the job cannot run; skip rather than fail so forks are not
-    # blocked by a secret they cannot have.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v5
@@ -42,9 +37,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,treesitter]"
 
-      # Embeddings are the expensive, quota-limited part of a run. Restoring the
-      # content-addressed cache means a rerun re-embeds only what changed, which
-      # keeps the suite inside the free tier's daily allowance.
       - name: Restore the embedding cache
         uses: actions/cache@v4
         with:
@@ -77,7 +69,6 @@ jobs:
           ARGS="--repo reposage --output evals/REPORT.md --json evals/report.json"
           if [ -n "${{ inputs.limit }}" ]; then ARGS="$ARGS --limit ${{ inputs.limit }}"; fi
           if [ "${{ inputs.judge }}" = "false" ]; then ARGS="$ARGS --no-judge"; fi
-          # Quality gate: the run fails if retrieval or answer quality regresses.
           python -m evals.run_evals $ARGS --min-recall 0.55 --min-pass-rate 0.60
 
       - name: Publish the report to the job summary

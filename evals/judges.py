@@ -1,23 +1,3 @@
-"""LLM-as-judge scoring.
-
-Automated judging is imperfect, so the design tries hard to make it *useful*
-rather than pretending it is ground truth:
-
-* **Separate axes.** Correctness, groundedness and completeness are scored
-  independently, because a fluent answer can be complete and still wrong, and a
-  correct answer can be poorly grounded. Collapsing them into one number hides
-  exactly the failure you want to see.
-* **An explicit rubric.** Each point on the 1-5 scale is defined, which
-  measurably reduces judge variance compared with an unanchored "rate this".
-* **Reasoning before scores.** The judge writes its justification first. Scores
-  produced after reasoning are better calibrated than scores produced before it.
-* **Temperature zero and a fast model.** Judging is a classification task, and
-  determinism matters more than eloquence.
-
-Judge scores are reported alongside the deterministic retrieval metrics, never
-instead of them.
-"""
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -27,7 +7,7 @@ from pydantic import BaseModel, Field
 from reposage.llm.client import ModelTier
 from reposage.logging_setup import get_logger
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from reposage.llm.client import LLMClient
 
 log = get_logger(__name__)
@@ -69,8 +49,6 @@ information was in fact available."""
 
 
 class JudgeVerdict(BaseModel):
-    """Structured output of one judging call."""
-
     reasoning: str = Field(default="", description="Written before the scores.")
     correctness: int = Field(default=3, ge=1, le=5)
     groundedness: int = Field(default=3, ge=1, le=5)
@@ -81,15 +59,12 @@ class JudgeVerdict(BaseModel):
 
     @property
     def overall(self) -> float:
-        """Weighted mean. Correctness dominates because a wrong answer is worse
-        than an incomplete one."""
         return round(
             (self.correctness * 0.45 + self.groundedness * 0.35 + self.completeness * 0.20), 3
         )
 
     @property
     def passed(self) -> bool:
-        """A conservative bar: nothing below 3, and a solid overall score."""
         return (
             min(self.correctness, self.groundedness, self.completeness) >= 3 and self.overall >= 3.5
         )
@@ -102,7 +77,6 @@ async def judge_answer(
     reference: str = "",
     citations: list[str] | None = None,
 ) -> JudgeVerdict:
-    """Grade one answer. Failures degrade to a neutral verdict rather than raising."""
     reference_block = (
         f"Reference answer (written by someone who knows the code):\n{reference}\n\n"
         if reference.strip()

@@ -1,11 +1,3 @@
-"""Shared fixtures.
-
-The whole suite runs offline. A deterministic fake provider stands in for
-Gemini, so tests are fast, free and reproducible, and CI needs no secrets.
-Tests that genuinely require a live model are marked ``integration`` and skipped
-unless ``GEMINI_API_KEY`` is present.
-"""
-
 from __future__ import annotations
 
 import json
@@ -74,7 +66,7 @@ index abc123..def456 100644
 +        if row is None:
 +            raise NotFound(user_id)
 +        return row
- 
+
      def close(self):
          self.conn.close()
 diff --git a/docs/README.md b/docs/README.md
@@ -88,8 +80,6 @@ new file mode 100644
 
 
 class FakeProvider:
-    """Deterministic provider. Same input always yields the same output."""
-
     name = "fake"
 
     def __init__(self, dim: int = 128) -> None:
@@ -227,7 +217,6 @@ def client(provider: FakeProvider, settings: Settings) -> LLMClient:
 
 @pytest.fixture
 def sample_repo(tmp_path: Path) -> Path:
-    """A small on-disk repository covering several languages."""
     root = tmp_path / "sample-repo"
     (root / "auth").mkdir(parents=True)
     (root / "web").mkdir()

@@ -1,12 +1,3 @@
-"""Index construction, persistence and lifecycle.
-
-An index is a directory of plain files: chunks as JSONL, dense vectors as a
-NumPy array, the BM25 postings as a compressed archive, and a JSON manifest.
-No database, no server. That makes an index trivially copyable, diffable in CI,
-and cheap to rebuild, which matters because rebuilding is how we recover from
-any corruption rather than writing repair logic.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -27,7 +18,7 @@ from reposage.logging_setup import get_logger
 from reposage.models import Chunk, RepoMetadata
 from reposage.observability import current_tracer
 
-if TYPE_CHECKING:  # pragma: no cover
+if TYPE_CHECKING:
     from reposage.llm.client import LLMClient
 
 log = get_logger(__name__)
@@ -45,8 +36,6 @@ def slugify(name: str) -> str:
 
 @dataclass
 class IndexStats:
-    """Reported after a build so index health is visible at a glance."""
-
     chunks: int = 0
     files: int = 0
     vectors: int = 0
@@ -68,8 +57,6 @@ class IndexStats:
 
 
 class RepoIndex:
-    """A searchable index over one repository."""
-
     def __init__(
         self,
         metadata: RepoMetadata,
@@ -85,7 +72,6 @@ class RepoIndex:
         self.repo_map = repo_map
         self.stats = IndexStats()
 
-    # ----------------------------------------------------------------- build
     @classmethod
     async def build(
         cls,
@@ -94,7 +80,6 @@ class RepoIndex:
         *,
         settings: Settings | None = None,
     ) -> RepoIndex:
-        """Embed and index the output of the ingestion pipeline."""
         settings = settings or get_settings()
         tracer = current_tracer()
         started = asyncio.get_event_loop().time()
@@ -157,12 +142,10 @@ class RepoIndex:
         branch: str | None = None,
         refresh: bool = False,
     ) -> RepoIndex:
-        """Convenience path: clone, chunk, embed and index in one call."""
         settings = settings or get_settings()
         ingestion = await IngestionPipeline(settings).run(source, branch=branch, refresh=refresh)
         return await cls.build(ingestion, client, settings=settings)
 
-    # ----------------------------------------------------------- persistence
     @property
     def index_id(self) -> str:
         return slugify(self.metadata.name)
@@ -245,7 +228,6 @@ class RepoIndex:
             return True
         return False
 
-    # ------------------------------------------------------------ inspection
     def get(self, chunk_id: str) -> Chunk | None:
         return self.chunks.get(chunk_id)
 
@@ -273,23 +255,16 @@ class RepoIndex:
 
 
 def render_for_embedding(chunk: Chunk) -> str:
-    """Text sent to the embedding model.
-
-    Prefixing the symbol path and kind measurably improves recall on questions
-    phrased in terms of names rather than behaviour, at a cost of a few tokens.
-    """
     header = f"{chunk.path} | {chunk.kind.value}: {chunk.qualified_name}"
     return f"{header}\n{chunk.content[:8000]}"
 
 
 def render_for_lexical(chunk: Chunk) -> str:
-    """Text fed to BM25. The symbol is repeated to weight exact-name matches."""
     parts = [chunk.path, chunk.qualified_name or "", chunk.symbol or "", chunk.content]
     return "\n".join(p for p in parts if p)
 
 
 def list_indexes(settings: Settings | None = None) -> list[dict[str, Any]]:
-    """Summarise every index on disk without fully loading any of them."""
     settings = settings or get_settings()
     root = settings.index_dir
     if not root.exists():
@@ -301,7 +276,7 @@ def list_indexes(settings: Settings | None = None) -> list[dict[str, Any]]:
             continue
         try:
             manifest = orjson.loads(manifest_path.read_bytes())
-        except Exception:  # pragma: no cover - corrupt manifest
+        except Exception:
             continue
         metadata = manifest.get("metadata", {})
         found.append(

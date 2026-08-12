@@ -1,18 +1,3 @@
-"""Create and publish the Hugging Face Space.
-
-Usage:
-
-    pip install huggingface_hub
-    python space/publish.py --user YOUR_HF_USERNAME
-
-The script is idempotent: run it again after any change to redeploy. It reads
-the Gemini key from your local .env and installs it as a Space secret, so the
-key is never written into the Space repository.
-
-Authentication comes from `huggingface-cli login` or the HF_TOKEN environment
-variable. The token needs write access.
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -24,7 +9,6 @@ PROJECT_ROOT = SPACE_DIR.parent
 
 
 def read_local_key() -> str:
-    """Pull GEMINI_API_KEY out of the project's .env, if present."""
     env = PROJECT_ROOT / ".env"
     if not env.exists():
         return ""
@@ -87,11 +71,6 @@ def main() -> int:
         folder_path=str(SPACE_DIR),
         repo_id=repo_id,
         repo_type="space",
-        # publish.py is tooling, not part of the running Space.
-        # The index is fetched from GitHub during the Docker build, because
-        # Hugging Face stores *.npy through LFS and the build would otherwise
-        # copy a pointer file. Uploading it here would be dead weight, and
-        # delete_patterns clears any copy left by an earlier deploy.
         ignore_patterns=["publish.py", "index/*", "__pycache__/*", "*.pyc"],
         delete_patterns=["index/*"],
         commit_message="Deploy RepoSage demo",
@@ -107,19 +86,15 @@ def main() -> int:
 
 
 def _pin_commit() -> None:
-    """Point the Space Dockerfile at the commit being deployed.
-
-    Installing from a branch lets Docker reuse its cached layer, so a redeploy
-    would appear to succeed while still running older code. Pinning the SHA
-    changes the Dockerfile on every deploy, which both busts the cache and makes
-    the running demo traceable to an exact commit.
-    """
     import subprocess
 
     try:
         sha = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=PROJECT_ROOT, capture_output=True, text=True, check=True,
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
         ).stdout.strip()
     except Exception:
         print("Could not read the current commit; leaving the pin unchanged.")
@@ -137,12 +112,6 @@ def _pin_commit() -> None:
 
 
 def _link_readme(repo_id: str) -> None:
-    """Point the GitHub README at the Space that now exists.
-
-    The README ships with a placeholder because the Space id is not known until
-    somebody publishes one. Rewriting it here means the repository can never
-    advertise a demo URL that does not resolve.
-    """
     readme = PROJECT_ROOT / "README.md"
     if not readme.exists():
         return

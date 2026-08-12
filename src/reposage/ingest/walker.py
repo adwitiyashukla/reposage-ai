@@ -1,12 +1,3 @@
-"""Repository traversal.
-
-Real repositories are mostly noise: lockfiles, minified bundles, vendored
-dependencies, build output, fixtures. Indexing them costs embedding budget and,
-worse, dilutes retrieval quality. This module applies layered filtering and,
-when a repository still exceeds the file budget, keeps the most informative
-files rather than an arbitrary prefix of the directory listing.
-"""
-
 from __future__ import annotations
 
 import os
@@ -23,8 +14,8 @@ try:
     import pathspec
 
     _HAS_PATHSPEC = True
-except ImportError:  # pragma: no cover
-    pathspec = None  # type: ignore[assignment]
+except ImportError:
+    pathspec = None
     _HAS_PATHSPEC = False
 
 
@@ -172,7 +163,6 @@ EXCLUDED_SUFFIXES: tuple[str, ...] = (
     ".safetensors",
 )
 
-# Files whose presence explains how a project is structured and operated.
 HIGH_VALUE_NAMES: frozenset[str] = frozenset(
     {
         "readme.md",
@@ -204,8 +194,6 @@ HIGH_VALUE_NAMES: frozenset[str] = frozenset(
 
 @dataclass(slots=True)
 class SourceFile:
-    """One file that survived filtering, with its text already loaded."""
-
     path: Path
     rel_path: str
     language: str
@@ -220,7 +208,6 @@ class SourceFile:
 
 
 def _looks_binary(sample: bytes) -> bool:
-    """Null bytes are the single most reliable text/binary discriminator."""
     return b"\x00" in sample
 
 
@@ -232,22 +219,17 @@ def _load_gitignore(root: Path) -> object | None:
         if candidate.is_file():
             try:
                 patterns.extend(candidate.read_text(encoding="utf-8", errors="ignore").splitlines())
-            except OSError:  # pragma: no cover
+            except OSError:
                 continue
     if not patterns:
         return None
     try:
         return pathspec.PathSpec.from_lines("gitwildmatch", patterns)
-    except Exception:  # pragma: no cover - malformed gitignore
+    except Exception:
         return None
 
 
 def _importance(rel_path: str, spec: LanguageSpec, num_lines: int) -> float:
-    """Heuristic ranking used only when a repository exceeds the file budget.
-
-    Favours real source code, shallow paths, entry points and documentation,
-    and penalises tests and generated-looking files.
-    """
     name = Path(rel_path).name.lower()
     score = 10.0 if spec.is_code else 4.0
     if name in HIGH_VALUE_NAMES:
@@ -276,7 +258,6 @@ def walk_repository(
     respect_gitignore: bool = True,
     include_globs: list[str] | None = None,
 ) -> list[SourceFile]:
-    """Return the files worth indexing, capped at ``max_files`` by importance."""
     root = root.resolve()
     ignore_spec = _load_gitignore(root) if respect_gitignore else None
     include_matcher = None
@@ -293,7 +274,7 @@ def walk_repository(
         if name in EXCLUDED_FILENAMES or rel.lower().endswith(EXCLUDED_SUFFIXES):
             skipped["excluded"] += 1
             continue
-        if ignore_spec is not None and ignore_spec.match_file(rel):  # type: ignore[union-attr]
+        if ignore_spec is not None and ignore_spec.match_file(rel):
             skipped["ignored"] += 1
             continue
         if include_matcher is not None and not include_matcher.match_file(rel):
@@ -323,7 +304,6 @@ def walk_repository(
         except UnicodeDecodeError:
             content = raw.decode("utf-8", errors="replace")
 
-        # A very long average line length means minified or generated content.
         num_lines = content.count("\n") + 1
         if num_lines and len(content) / num_lines > 400:
             skipped["excluded"] += 1
@@ -353,13 +333,11 @@ def walk_repository(
         truncated=truncated,
         **skipped,
     )
-    # Restore path order so downstream output is deterministic and readable.
     selected.sort(key=lambda f: f.rel_path)
     return selected
 
 
 def _iter_files(root: Path) -> Iterator[Path]:
-    """Depth-first walk that prunes excluded directories in place."""
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
         dirnames[:] = [
             d for d in dirnames if d.lower() not in EXCLUDED_DIRS and not d.startswith(".git")

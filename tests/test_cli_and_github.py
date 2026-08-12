@@ -1,5 +1,3 @@
-"""CLI surface and GitHub review posting."""
-
 from __future__ import annotations
 
 import httpx
@@ -25,12 +23,6 @@ runner = CliRunner()
 
 @pytest.fixture
 def isolated_cwd(tmp_path, monkeypatch):
-    """Run the CLI from an empty directory.
-
-    Settings load `.env` relative to the working directory, so without this a
-    developer's real key leaks into the test and `doctor` makes a live call.
-    Tests must not depend on whoever is running them.
-    """
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("REPOSAGE_DATA_DIR", str(tmp_path / ".reposage"))
     from reposage.config import reset_settings_cache
@@ -148,7 +140,7 @@ class TestGitHubClient:
         client = GitHubClient("t", transport=httpx.MockTransport(handler))
         await client.post_review(PullRequestRef("o", "r", 7), report)
         assert captured["event"] == "COMMENT"
-        assert len(captured["comments"]) == 1  # only the anchored finding
+        assert len(captured["comments"]) == 1
         assert captured["comments"][0]["line"] == 11
         assert captured["comments"][0]["side"] == "RIGHT"
         await client.aclose()
@@ -168,8 +160,6 @@ class TestGitHubClient:
         await client.aclose()
 
     async def test_rejected_inline_comments_degrade_to_a_summary(self, report):
-        """GitHub 422s the whole review if one comment is off-diff. Losing the
-        review entirely would be worse than losing the inline placement."""
         calls: list[dict] = []
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -234,10 +224,6 @@ class TestActionsEnvironment:
 
 
 class TestConsoleEncoding:
-    """Windows defaults redirected output to cp1252, which cannot encode the
-    box-drawing and severity glyphs the CLI prints. Left unhandled it is not a
-    garbled character, it is an unhandled exception mid-command."""
-
     def test_configure_is_idempotent_and_safe(self):
         from reposage.logging_setup import configure_console_encoding
 
@@ -254,7 +240,6 @@ class TestConsoleEncoding:
         configure_console_encoding()
 
     def test_severity_glyphs_survive_a_cp1252_roundtrip(self):
-        """Rendering must not depend on the terminal's code page."""
         for severity in Severity:
             rendered = ReviewFinding(
                 path="a.py", line=1, severity=severity, title="t", body="b"
