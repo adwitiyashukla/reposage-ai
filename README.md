@@ -50,8 +50,7 @@ web UI you click a citation and the exact lines open.
   </picture>
 </p>
 
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) walks the whole path from question to answer. The three
-sections below are the parts I would defend in an interview.
+The three sections below are the parts I would defend in an interview.
 
 ### Chunking, which is where most of the quality comes from
 
@@ -270,7 +269,7 @@ src/reposage/
 
 evals/                 Dataset, metrics, judges, ablation harness, report generator
 tests/                 194 tests, fully offline
-docs/                  Architecture and evaluation write-ups
+docs/assets/           The architecture diagram, light and dark
 space/                 Hugging Face Space packaging
 ```
 

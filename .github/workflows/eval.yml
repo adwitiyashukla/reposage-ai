@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .reposage/cache
-          key: reposage-embed-${{ hashFiles('src/**/*.py', 'docs/**/*.md', 'README.md') }}
+          key: reposage-embed-${{ hashFiles('src/**/*.py', 'README.md') }}
           restore-keys: |
             reposage-embed-
 

@@ -75,5 +75,5 @@ reposage serve
 
 ---
 
-Source, architecture notes and evaluation methodology:
+Source:
 **[github.com/adwitiyashukla/reposage-ai](https://github.com/adwitiyashukla/reposage-ai)**
